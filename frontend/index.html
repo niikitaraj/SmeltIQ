@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230284c7'><path d='M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5'/></svg>" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>SmeltIQ | Gate Entry Compliance & OCR Verification System</title>
+    <!-- Google Fonts for crisp industrial typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  </head>
+  <body class="bg-[#0a0e17] text-slate-100 font-sans antialiased min-h-screen selection:bg-sky-500 selection:text-white">
+    <div id="root"></div>
+
+    <!-- Fallback if opened directly via file:// instead of running Vite dev server -->
+    <div id="file-protocol-warning" style="display: none;" class="p-6 max-w-xl mx-auto my-12 bg-slate-900 border border-amber-500/50 rounded-2xl text-center shadow-2xl">
+      <div class="w-12 h-12 mx-auto mb-3 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-xl">⚠️</div>
+      <h2 class="text-lg font-bold text-slate-100 mb-2">Vite Development File Detected</h2>
+      <p class="text-xs text-slate-300 mb-4 leading-relaxed">
+        Browsers cannot execute TypeScript (<code class="text-sky-400">/src/main.tsx</code>) directly via <code class="text-amber-400">file://</code> protocol without the Vite compiler.
+      </p>
+      <div class="space-y-3 text-left text-xs bg-slate-950 p-4 rounded-xl border border-slate-800">
+        <div>
+          <strong class="text-emerald-400">Option 1 (Instant Click & Run):</strong>
+          <p class="text-slate-400 mt-0.5">Open the standalone <a href="../index.html" class="text-sky-400 underline font-semibold">index.html</a> in the project root folder. It runs instantly in any browser with zero setup!</p>
+        </div>
+        <div>
+          <strong class="text-sky-400">Option 2 (Vite React Server):</strong>
+          <p class="text-slate-400 mt-0.5 font-mono bg-slate-900 p-2 rounded text-[11px] mt-1">cd frontend && npm install && npm run dev</p>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      if (window.location.protocol === 'file:') {
+        // If opened as file://, show the helpful guidance banner
+        setTimeout(() => {
+          const rootEl = document.getElementById('root');
+          if (!rootEl || rootEl.children.length === 0) {
+            document.getElementById('file-protocol-warning').style.display = 'block';
+          }
+        }, 500);
+      }
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

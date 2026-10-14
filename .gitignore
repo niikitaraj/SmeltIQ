@@ -1,0 +1,91 @@
+# ==============================================================================
+# SmeltIQ Gate Entry Compliance System - .gitignore
+# ==============================================================================
+
+# Environment variables & secrets (CRITICAL: Do NOT commit active API tokens)
+.env
+.env.*
+!.env.example
+backend/.env
+frontend/.env
+*.local
+
+# Python / FastAPI
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Node / Vite / React
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+frontend/dist/
+frontend/dist-ssr/
+frontend/node_modules/
+.eslintcache
+*.tsbuildinfo
+.vite/
+
+# Database & Uploads
+*.sqlite
+*.sqlite3
+*.db
+supabase/.temp/
+
+# OCR / Temporary Uploads
+temp/
+tmp/
+*.tmp
+temp_ocr_*
+ocr_scans/
+
+# Testing & Coverage
+.coverage
+.coverage.*
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# IDE & OS files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini

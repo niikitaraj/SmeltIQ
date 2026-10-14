@@ -1,0 +1,2995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SmeltIQ | Gate Entry Compliance & ANPR System (Cruip Simple Light)</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              200: '#bfdbfe',
+              300: '#93c5fd',
+              400: '#60a5fa',
+              500: '#3b82f6',
+              600: '#2563eb', // Cruip Signature Blue
+              700: '#1d4ed8',
+              800: '#1e40af',
+              900: '#1e3a8a',
+            }
+          },
+          animation: {
+            'scan': 'scan 2.5s ease-in-out infinite alternate',
+          },
+          keyframes: {
+            scan: {
+              '0%': { transform: 'translateY(0%)' },
+              '100%': { transform: 'translateY(100%)' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- React 18 & ReactDOM UMD -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+
+  <!-- Babel for JSX execution in standalone browser mode -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+      background-image: 
+        radial-gradient(at 50% 0%, rgba(219, 234, 254, 0.45) 0px, transparent 60%),
+        radial-gradient(at 100% 0%, rgba(238, 242, 255, 0.4) 0px, transparent 50%);
+      background-attachment: fixed;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .glow-emerald {
+      box-shadow: 0 4px 20px -2px rgba(16, 185, 129, 0.25);
+    }
+    .glow-rose {
+      box-shadow: 0 4px 20px -2px rgba(244, 63, 94, 0.25);
+    }
+    .glow-amber {
+      box-shadow: 0 4px 20px -2px rgba(245, 158, 11, 0.25);
+    }
+    .glow-blue {
+      box-shadow: 0 4px 20px -2px rgba(37, 99, 235, 0.25);
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="antialiased min-h-screen">
+  <div id="root"></div>
+
+  <!-- Main Standalone Application Script -->
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback } = React;
+
+    // SVG Icon Library
+    const Icons = {
+      Factory: () => (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+        </svg>
+      ),
+      LayoutDashboard: () => (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <rect x="3" y="3" width="7" height="9" rx="1" /><rect x="14" y="3" width="7" height="5" rx="1" /><rect x="14" y="12" width="7" height="9" rx="1" /><rect x="3" y="16" width="7" height="5" rx="1" />
+        </svg>
+      ),
+      Keyboard: () => (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <rect x="2" y="4" width="20" height="16" rx="2" /><path d="M6 8h.001M10 8h.001M14 8h.001M18 8h.001M6 12h.001M10 12h.001M14 12h.001M18 12h.001M8 16h8" />
+        </svg>
+      ),
+      History: () => (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+      ShieldAlert: () => (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+      ),
+      ShieldCheck: () => (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+        </svg>
+      ),
+      BookOpen: () => (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+        </svg>
+      ),
+      LogOut: () => (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+        </svg>
+      ),
+      ChevronDown: () => (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      ),
+      CheckCircle: () => (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+      XCircle: () => (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+      AlertTriangle: () => (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+      ),
+      Scan: () => (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+        </svg>
+      ),
+      KeyRound: () => (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+        </svg>
+      ),
+      Camera: () => (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      ),
+      Sparkles: () => (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+        </svg>
+      ),
+      Truck: () => (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+        </svg>
+      ),
+      SlidersHorizontal: () => (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+        </svg>
+      ),
+      Clock: () => (
+        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <circle cx="12" cy="12" r="10" /><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2" />
+        </svg>
+      ),
+      Plus: () => (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+        </svg>
+      ),
+      Search: () => (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <circle cx="11" cy="11" r="8" /><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35" />
+        </svg>
+      ),
+      Trash2: () => (
+        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+        </svg>
+      ),
+      FileWarning: () => (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      ),
+      PhoneCall: () => (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+        </svg>
+      ),
+      Scale: () => (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+        </svg>
+      ),
+      HardHat: () => (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 2a9 9 0 00-9 9v3a2 2 0 002 2h14a2 2 0 002-2v-3a9 9 0 00-9-9zM4 14h16M12 2v6" />
+        </svg>
+      ),
+      Menu: () => (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      ),
+      X: () => (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      ),
+      Radio: () => (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <circle cx="12" cy="12" r="2" /><path d="M16.24 7.76a6 6 0 010 8.49m-8.48-.01a6 6 0 010-8.49m11.31-2.82a10 10 0 010 14.14m-14.14 0a10 10 0 010-14.14" />
+        </svg>
+      ),
+      FileSpreadsheet: () => (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      )
+    };
+
+    // Master Vendors Data
+    const INITIAL_VENDORS = [
+      { id: '1', vendor_code: 'VEND-TATALOG-01', vendor_name: 'Tata Steel Supply Chain & Freight Logistics', is_active: true },
+      { id: '2', vendor_code: 'VEND-JINDAL-02', vendor_name: 'Jindal Heavy Transporters & Bulk Cargo Pvt Ltd', is_active: true },
+      { id: '3', vendor_code: 'VEND-VIZAG-03', vendor_name: 'Vizag Coastal Freight Carriers', is_active: true },
+      { id: '4', vendor_code: 'VEND-APEX-04', vendor_name: 'Apex Ore & Minerals Haulage Ltd', is_active: true },
+      { id: '5', vendor_code: 'VEND-BLACKLIST-99', vendor_name: 'Defunct Southern Roadways (Blacklisted)', is_active: false }
+    ];
+
+    // Seeded Movement History Logs
+    const INITIAL_MOVEMENTS = [
+      {
+        id: 'mov-101',
+        gate_id: 'Gate 01 - North Material Entrance',
+        movement_type: 'ENTRY',
+        vehicle_number: 'AP31TJ9988',
+        ocr_confidence: 97.4,
+        owner_name: 'RAMESH CHANDRA SHARMA',
+        vendor_code: 'VEND-TATALOG-01',
+        vendor_name: 'Tata Steel Supply Chain & Freight Logistics',
+        rc_status: 'ACTIVE',
+        puc_valid_until: '2027-04-15',
+        puc_status: 'VALID',
+        compliance_status: 'ALLOWED',
+        rejection_reasons: [],
+        guard_id: 'GUARD-8812',
+        vehicle_class: 'Multi-Axle Heavy Goods Trailer',
+        insurance_upto: '2027-03-28',
+        created_at: new Date(Date.now() - 3600000 * 2.2).toISOString()
+      },
+      {
+        id: 'mov-102',
+        gate_id: 'Gate 01 - North Material Entrance',
+        movement_type: 'ENTRY',
+        vehicle_number: 'MH12AB5678',
+        ocr_confidence: 93.1,
+        owner_name: 'SURESH TRUCKING CO.',
+        vendor_code: 'VEND-JINDAL-02',
+        vendor_name: 'Jindal Heavy Transporters & Bulk Cargo Pvt Ltd',
+        rc_status: 'ACTIVE',
+        puc_valid_until: '2026-09-30',
+        puc_status: 'EXPIRED',
+        compliance_status: 'DENIED',
+        rejection_reasons: ['Pollution Under Control (PUC) certificate expired on 2026-09-30 (-13 days).'],
+        guard_id: 'GUARD-8812',
+        vehicle_class: 'Heavy Slag Tipper Carrier',
+        insurance_upto: '2027-01-14',
+        created_at: new Date(Date.now() - 3600000 * 1.5).toISOString()
+      },
+      {
+        id: 'mov-103',
+        gate_id: 'Gate 02 - Inbound Weighbridge',
+        movement_type: 'ENTRY',
+        vehicle_number: 'AP31XX0001',
+        ocr_confidence: 89.6,
+        owner_name: 'VIJAYAWADA ROADWAYS LTD',
+        vendor_code: 'VEND-VIZAG-03',
+        vendor_name: 'Vizag Coastal Freight Carriers',
+        rc_status: 'SUSPENDED',
+        puc_valid_until: '2027-01-10',
+        puc_status: 'VALID',
+        compliance_status: 'OVERRIDDEN',
+        rejection_reasons: ['Vehicle Registration Certificate (RC) status is SUSPENDED (Rule 1 violation).'],
+        override_reason: 'Emergency blast furnace raw flux delivery authorized by Shift Supervisor Capt. Alok Gupta',
+        guard_id: 'GUARD-1042',
+        vehicle_class: 'Iron Ore Dumper (Tri-Axle)',
+        insurance_upto: '2026-12-30',
+        created_at: new Date(Date.now() - 3600000 * 0.9).toISOString()
+      },
+      {
+        id: 'mov-104',
+        gate_id: 'Gate 01 - North Material Entrance',
+        movement_type: 'ENTRY',
+        vehicle_number: 'DL01AB1234',
+        ocr_confidence: 98.1,
+        owner_name: 'SOUTHERN SCRAP CORP',
+        vendor_code: 'VEND-BLACKLIST-99',
+        vendor_name: 'Defunct Southern Roadways (Blacklisted)',
+        rc_status: 'INACTIVE',
+        puc_valid_until: '2026-08-11',
+        puc_status: 'EXPIRED',
+        compliance_status: 'DENIED',
+        rejection_reasons: [
+          'Vehicle is registered on Plant Security Blacklist Registry: Tampered e-way bill & unapproved industrial scrap diversion.',
+          'Transporter is suspended from Vizag Steel plant premises.'
+        ],
+        guard_id: 'GUARD-8812',
+        vehicle_class: 'Flatbed Container Carrier',
+        insurance_upto: '2026-09-01',
+        created_at: new Date(Date.now() - 3600000 * 0.5).toISOString()
+      }
+    ];
+
+    // Seeded Watchlist / Blacklist
+    const INITIAL_BLACKLIST = [
+      {
+        id: 'blk-001',
+        vehicle_number: 'DL01AB1234',
+        vendor_name: 'Defunct Southern Roadways (Blacklisted)',
+        blacklisted_reason: 'Tampered e-way bill & unapproved industrial scrap diversion incident.',
+        flagged_by: 'SUPER88',
+        flagged_date: '2026-09-15'
+      },
+      {
+        id: 'blk-002',
+        vehicle_number: 'AP31BL9999',
+        vendor_name: 'Apex Ore & Minerals Haulage Ltd',
+        blacklisted_reason: 'Slag spillage on heavy transit haulage lane; repeated axle overload without endorsement.',
+        flagged_by: 'ADMIN-01',
+        flagged_date: '2026-10-02'
+      },
+      {
+        id: 'blk-003',
+        vehicle_number: 'OD02XX8811',
+        vendor_name: 'Coastal Freight Carriers',
+        blacklisted_reason: 'Fake driver credentials & refusal to wear mandatory safety PPE in plant zone.',
+        flagged_by: 'GUARD-8812',
+        flagged_date: '2026-10-08'
+      }
+    ];
+
+    // Default Operator Profile for Gate Terminal
+    const DEFAULT_USER = {
+      id: 'usr-guard-01',
+      employee_id: 'GUARD-8812',
+      full_name: 'Rajesh Kumar',
+      role: 'GATE_GUARD',
+      assigned_gate_id: 'Gate 01 - North Material Entrance'
+    };
+
+    // =========================================================================
+    // AUTHENTICATION COMPONENT: Login & Sign-Up Tabs with Demo Presets
+    // =========================================================================
+    function AuthPage({ onAuthSuccess }) {
+      const [activeTab, setActiveTab] = useState('LOGIN');
+      const [loginIdentifier, setLoginIdentifier] = useState('GUARD-8812');
+      const [loginPassword, setLoginPassword] = useState('1234');
+      const [loginGate, setLoginGate] = useState('Gate 01 - North Material Entrance');
+
+      const [signupFullName, setSignupFullName] = useState('');
+      const [signupEmployeeId, setSignupEmployeeId] = useState('');
+      const [signupEmail, setSignupEmail] = useState('');
+      const [signupPassword, setSignupPassword] = useState('');
+      const [signupRole, setSignupRole] = useState('GATE_GUARD');
+      const [signupGate, setSignupGate] = useState('Gate 01 - North Material Entrance');
+
+      const [isLoading, setIsLoading] = useState(false);
+      const [errorMsg, setErrorMsg] = useState(null);
+      const [successMsg, setSuccessMsg] = useState(null);
+
+      const handlePresetSelect = (empId, pass, gate) => {
+        setActiveTab('LOGIN');
+        setLoginIdentifier(empId);
+        setLoginPassword(pass);
+        setLoginGate(gate);
+        setErrorMsg(null);
+      };
+
+      const handleLoginSubmit = (e) => {
+        e.preventDefault();
+        setErrorMsg(null);
+        setSuccessMsg(null);
+
+        if (!loginIdentifier.trim()) {
+          setErrorMsg('Please enter your Email or Employee ID.');
+          return;
+        }
+        if (!loginPassword.trim()) {
+          setErrorMsg('Please enter your account password or PIN.');
+          return;
+        }
+
+        setIsLoading(true);
+        setTimeout(() => {
+          const clean = loginIdentifier.trim().toUpperCase();
+          let role = 'GATE_GUARD';
+          let fullName = `Officer ${clean}`;
+
+          if (clean.includes('SUPER') || loginPassword.toUpperCase() === 'SUPER88') {
+            role = 'PLANT_SUPERVISOR';
+            fullName = 'Alok Gupta (Operations Supervisor)';
+          } else if (clean.includes('ADMIN') || loginPassword.toUpperCase() === 'ADMIN2026') {
+            role = 'ADMIN';
+            fullName = 'Meera Nair (Compliance Admin)';
+          } else if (clean === 'GUARD-8812') {
+            fullName = 'Rajesh Kumar (Senior Gate Guard)';
+          } else if (clean === 'GUARD-1042') {
+            fullName = 'Officer K. V. Rao (Patrol Guard)';
+          }
+
+          const user = {
+            id: 'user-' + Date.now(),
+            employee_id: clean.startsWith('GUARD-') || clean.startsWith('SUP-') || clean.startsWith('EMP-')
+              ? clean
+              : `EMP-${clean.slice(0, 6)}`,
+            full_name: fullName,
+            role: role,
+            assigned_gate_id: loginGate,
+            is_active: true
+          };
+
+          setSuccessMsg(`Welcome, ${user.full_name}! Redirecting to SmeltIQ Dashboard...`);
+          setTimeout(() => {
+            onAuthSuccess(user);
+          }, 350);
+          setIsLoading(false);
+        }, 400);
+      };
+
+      const handleSignupSubmit = (e) => {
+        e.preventDefault();
+        setErrorMsg(null);
+        setSuccessMsg(null);
+
+        if (!signupFullName.trim()) {
+          setErrorMsg('Full Name is required.');
+          return;
+        }
+        if (!signupEmployeeId.trim()) {
+          setErrorMsg('Employee ID is required (e.g. GUARD-2041 or SUP-004).');
+          return;
+        }
+        if (!signupPassword.trim() || signupPassword.length < 4) {
+          setErrorMsg('Password must be at least 4 characters.');
+          return;
+        }
+
+        setIsLoading(true);
+        setTimeout(() => {
+          const user = {
+            id: 'user-' + Date.now(),
+            employee_id: signupEmployeeId.trim().toUpperCase(),
+            full_name: signupFullName.trim(),
+            role: signupRole,
+            assigned_gate_id: signupGate,
+            email: signupEmail.trim() || undefined,
+            is_active: true
+          };
+
+          setSuccessMsg(`Account created for ${user.full_name}! Logging in...`);
+          setTimeout(() => {
+            onAuthSuccess(user);
+          }, 350);
+          setIsLoading(false);
+        }, 450);
+      };
+
+      return (
+        <div className="min-h-screen flex flex-col justify-center items-center p-4 sm:p-6 bg-slate-50 font-sans">
+          {/* Header Brand */}
+          <div className="mb-6 text-center">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 mb-3">
+              <Icons.Factory />
+            </div>
+            <div className="flex items-center justify-center space-x-2">
+              <span className="text-2xl font-extrabold tracking-tight text-slate-900">SmeltIQ</span>
+              <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 uppercase">
+                Gate Entry
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1 font-medium">Vizag Steel Operations • Statutory Gate Compliance</p>
+          </div>
+
+          {/* Authentication Card */}
+          <div className="w-full max-w-md bg-white border border-slate-200 rounded-3xl shadow-xl overflow-hidden">
+            {/* Tabs Header */}
+            <div className="grid grid-cols-2 p-1.5 bg-slate-100/80 border-b border-slate-200">
+              <button
+                type="button"
+                onClick={() => { setActiveTab('LOGIN'); setErrorMsg(null); }}
+                className={`py-2.5 text-xs font-bold rounded-2xl transition ${
+                  activeTab === 'LOGIN'
+                    ? 'bg-white text-slate-900 shadow-sm font-extrabold'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => { setActiveTab('SIGNUP'); setErrorMsg(null); }}
+                className={`py-2.5 text-xs font-bold rounded-2xl transition ${
+                  activeTab === 'SIGNUP'
+                    ? 'bg-white text-slate-900 shadow-sm font-extrabold'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                Create Account
+              </button>
+            </div>
+
+            <div className="p-6 sm:p-7 space-y-4">
+              {/* Alert Feedback Messages */}
+              {errorMsg && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center space-x-2">
+                  <Icons.ShieldAlert />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+              {successMsg && (
+                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center space-x-2 font-medium">
+                  <Icons.CheckCircle />
+                  <span>{successMsg}</span>
+                </div>
+              )}
+
+              {/* Login Form */}
+              {activeTab === 'LOGIN' && (
+                <form onSubmit={handleLoginSubmit} className="space-y-4 text-xs">
+                  <div>
+                    <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Email or Employee ID
+                    </label>
+                    <input
+                      type="text"
+                      value={loginIdentifier}
+                      onChange={(e) => setLoginIdentifier(e.target.value)}
+                      placeholder="e.g. GUARD-8812 or SUPER88"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Shift Password / Master PIN
+                    </label>
+                    <input
+                      type="password"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Assigned Gate Terminal
+                    </label>
+                    <select
+                      value={loginGate}
+                      onChange={(e) => setLoginGate(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
+                    >
+                      <option value="Gate 01 - North Material Entrance">Gate 01 - North Material Entrance</option>
+                      <option value="Gate 02 - Inbound Weighbridge">Gate 02 - Inbound Weighbridge</option>
+                      <option value="Gate 03 - Finished Steel Exit">Gate 03 - Finished Steel Exit</option>
+                    </select>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider shadow-sm hover:shadow transition active:scale-[0.99] flex items-center justify-center space-x-2"
+                  >
+                    <span>{isLoading ? 'Signing In to Gate Terminal...' : 'Sign In to SmeltIQ'}</span>
+                  </button>
+
+                  {/* One-Touch Quick Demo Account Presets */}
+                  <div className="pt-3 border-t border-slate-200">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
+                      Quick Demo Role Accounts
+                    </span>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handlePresetSelect('GUARD-8812', '1234', 'Gate 01 - North Material Entrance')}
+                        className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left transition"
+                      >
+                        <div className="font-bold text-slate-800 text-[11px]">Gate Guard</div>
+                        <div className="text-[10px] text-slate-500 font-mono">GUARD-8812</div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handlePresetSelect('SUPER88', 'SUPER88', 'Gate 01 - North Material Entrance')}
+                        className="p-2 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-left transition"
+                      >
+                        <div className="font-bold text-amber-900 text-[11px]">Supervisor</div>
+                        <div className="text-[10px] text-amber-700 font-mono">SUPER88</div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handlePresetSelect('ADMIN2026', 'ADMIN2026', 'Gate 01 - North Material Entrance')}
+                        className="p-2 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-left transition"
+                      >
+                        <div className="font-bold text-purple-900 text-[11px]">Admin</div>
+                        <div className="text-[10px] text-purple-700 font-mono">ADMIN2026</div>
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              )}
+
+              {/* Sign Up Form */}
+              {activeTab === 'SIGNUP' && (
+                <form onSubmit={handleSignupSubmit} className="space-y-3.5 text-xs">
+                  <div>
+                    <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                      Full Legal Name
+                    </label>
+                    <input
+                      type="text"
+                      value={signupFullName}
+                      onChange={(e) => setSignupFullName(e.target.value)}
+                      placeholder="e.g. Ramesh Chandra Rao"
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                        Employee ID
+                      </label>
+                      <input
+                        type="text"
+                        value={signupEmployeeId}
+                        onChange={(e) => setSignupEmployeeId(e.target.value.toUpperCase())}
+                        placeholder="GUARD-2041"
+                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono text-xs focus:bg-white uppercase focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                        Role
+                      </label>
+                      <select
+                        value={signupRole}
+                        onChange={(e) => setSignupRole(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                      >
+                        <option value="GATE_GUARD">Gate Guard</option>
+                        <option value="PLANT_SUPERVISOR">Plant Supervisor</option>
+                        <option value="ADMIN">System Admin</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                      Email Address (Optional)
+                    </label>
+                    <input
+                      type="email"
+                      value={signupEmail}
+                      onChange={(e) => setSignupEmail(e.target.value)}
+                      placeholder="operator@vizagsteel.com"
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                      Account Password
+                    </label>
+                    <input
+                      type="password"
+                      value={signupPassword}
+                      onChange={(e) => setSignupPassword(e.target.value)}
+                      placeholder="Minimum 4 characters"
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                      Default Assigned Gate
+                    </label>
+                    <select
+                      value={signupGate}
+                      onChange={(e) => setSignupGate(e.target.value)}
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    >
+                      <option value="Gate 01 - North Material Entrance">Gate 01 - North Material Entrance</option>
+                      <option value="Gate 02 - Inbound Weighbridge">Gate 02 - Inbound Weighbridge</option>
+                      <option value="Gate 03 - Finished Steel Exit">Gate 03 - Finished Steel Exit</option>
+                    </select>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider shadow-sm hover:shadow transition active:scale-[0.99]"
+                  >
+                    <span>{isLoading ? 'Creating Officer Account...' : 'Register Officer Account'}</span>
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // =========================================================================
+    // MAIN APPLICATION COMPONENT: SmeltIQApp
+    // =========================================================================
+    function SmeltIQApp() {
+      // User Profile & Authentication State
+      const [currentUser, setCurrentUser] = useState(() => {
+        try {
+          const saved = localStorage.getItem('smeltiq_user');
+          return saved ? JSON.parse(saved) : DEFAULT_USER;
+        } catch (e) {
+          return DEFAULT_USER;
+        }
+      });
+
+      // Navigation & Layout State
+      const [activePage, setActivePage] = useState('DASHBOARD');
+      const [isSidebarOpenMobile, setIsSidebarOpenMobile] = useState(false);
+      const [activeGate, setActiveGate] = useState('Gate 01 - North Material Entrance');
+      const [time, setTime] = useState('');
+
+      // Master Datasets & State
+      const [vendors, setVendors] = useState(INITIAL_VENDORS);
+      const [blacklist, setBlacklist] = useState(() => {
+        try {
+          const saved = localStorage.getItem('smeltiq_blacklist');
+          return saved ? JSON.parse(saved) : INITIAL_BLACKLIST;
+        } catch {
+          return INITIAL_BLACKLIST;
+        }
+      });
+      const [blacklistSearch, setBlacklistSearch] = useState('');
+      const [isAddBlacklistOpen, setIsAddBlacklistOpen] = useState(false);
+      const [newBlkPlate, setNewBlkPlate] = useState('');
+      const [newBlkVendor, setNewBlkVendor] = useState('Defunct Southern Roadways');
+      const [newBlkReason, setNewBlkReason] = useState('');
+
+      // Operational Controls
+      const [showVirtualKeyboard, setShowVirtualKeyboard] = useState(false);
+      const [sopTab, setSopTab] = useState('EXPIRED_CERT');
+      const [sopAlert, setSopAlert] = useState(null);
+
+      const [movementType, setMovementType] = useState('ENTRY');
+      const [vehicleNumber, setVehicleNumber] = useState('AP31TJ9988');
+      const [selectedVendorCode, setSelectedVendorCode] = useState('VEND-TATALOG-01');
+      const [ocrConfidence, setOcrConfidence] = useState(96.4);
+
+      // Camera State
+      const [cameraActive, setCameraActive] = useState(false);
+      const [cameraError, setCameraError] = useState(null);
+      const [isScanning, setIsScanning] = useState(false);
+
+      // Decisions & Movements Logs
+      const [decision, setDecision] = useState(null);
+      const [movements, setMovements] = useState(INITIAL_MOVEMENTS);
+
+      // Modals
+      const [isOverrideOpen, setIsOverrideOpen] = useState(false);
+      const [overridePin, setOverridePin] = useState('SUPER88');
+      const [overrideReason, setOverrideReason] = useState('');
+      const [overrideError, setOverrideError] = useState(null);
+      const [isSupervisorDeskOpen, setIsSupervisorDeskOpen] = useState(false);
+      const [isBatchRunning, setIsBatchRunning] = useState(false);
+      const [selectedScenario, setSelectedScenario] = useState('ALLOWED');
+
+      const videoRef = useRef(null);
+      const streamRef = useRef(null);
+
+      // Clock
+      useEffect(() => {
+        const timer = setInterval(() => {
+          setTime(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+        }, 1000);
+        setTime(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+        return () => clearInterval(timer);
+      }, []);
+
+      // Blacklist persistence
+      useEffect(() => {
+        try {
+          localStorage.setItem('smeltiq_blacklist', JSON.stringify(blacklist));
+        } catch (e) {}
+      }, [blacklist]);
+
+      // Close drawer on Escape
+      useEffect(() => {
+        const handleKeyDown = (e) => {
+          if (e.key === 'Escape' && isSidebarOpenMobile) {
+            setIsSidebarOpenMobile(false);
+          }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+      }, [isSidebarOpenMobile]);
+
+      // WebCam stream control
+      const startCamera = async () => {
+        setCameraError(null);
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+          streamRef.current = stream;
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+            videoRef.current.play();
+          }
+          setCameraActive(true);
+        } catch (err) {
+          console.warn('Physical camera unavailable:', err);
+          setCameraActive(true);
+        }
+      };
+
+      const stopCamera = () => {
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => track.stop());
+          streamRef.current = null;
+        }
+        setCameraActive(false);
+      };
+
+      const captureFrame = () => {
+        setIsScanning(true);
+        setTimeout(() => {
+          setIsScanning(false);
+        }, 600);
+      };
+
+      // Statutory Rules Engine
+      const evaluateCompliance = (plate, vendorCode, scenario) => {
+        const upperPlate = (plate || '').toUpperCase().trim().replace(/\s+/g, '');
+        const vendor = vendors.find(v => v.vendor_code === vendorCode);
+        const isVendorActive = vendor ? vendor.is_active : false;
+
+        const isBlacklisted = blacklist.some(b => b.vehicle_number.toUpperCase().replace(/\s+/g, '') === upperPlate);
+        const blkRecord = blacklist.find(b => b.vehicle_number.toUpperCase().replace(/\s+/g, '') === upperPlate);
+
+        let rc_status = 'ACTIVE';
+        let puc_status = 'VALID';
+        let puc_valid_until = '2027-02-15';
+        let owner_name = 'TATA STEEL SUPPLY CHAIN LOGISTICS';
+        let vehicle_class = 'Multi-Axle Heavy Goods Trailer';
+        let insurance_upto = '2027-05-30';
+
+        if (scenario === 'EXPIRED_PUC' || upperPlate.includes('5678')) {
+          puc_status = 'EXPIRED';
+          puc_valid_until = '2026-09-30';
+          owner_name = 'SURESH TRUCKING CO.';
+          vehicle_class = 'Heavy Slag Tipper Carrier';
+        } else if (scenario === 'SUSPENDED_RC' || upperPlate.includes('0001')) {
+          rc_status = 'SUSPENDED';
+          puc_valid_until = '2027-01-10';
+          owner_name = 'VIJAYAWADA ROADWAYS LTD';
+          vehicle_class = 'Iron Ore Dumper (Tri-Axle)';
+        } else if (scenario === 'BLACKLISTED' || isBlacklisted) {
+          owner_name = blkRecord?.vendor_name || 'DEFUNCT TRANSPORTER';
+          rc_status = 'INACTIVE';
+          puc_status = 'EXPIRED';
+          puc_valid_until = '2026-08-11';
+        } else if (scenario === 'NOT_FOUND' || upperPlate.includes('0000')) {
+          rc_status = 'NOT_FOUND';
+          owner_name = 'UNKNOWN / NOT REGISTERED';
+          puc_status = 'NOT_FOUND';
+          puc_valid_until = 'N/A';
+        }
+
+        const rejection_reasons = [];
+
+        // Rule 0: Watchlist & Blacklist Interlock
+        if (isBlacklisted || scenario === 'BLACKLISTED') {
+          rejection_reasons.push(
+            `CRITICAL SECURITY ALERT: Vehicle is Blacklisted. Reason: "${blkRecord?.blacklisted_reason || 'Barred under plant safety protocol'}"`
+          );
+        }
+
+        // Rule 1: Vehicle RC Status === ACTIVE
+        if (rc_status !== 'ACTIVE') {
+          rejection_reasons.push(`Vehicle Registration Certificate (RC) status is ${rc_status} (expected ACTIVE)`);
+        }
+
+        // Rule 2: Vehicle PUC Certificate Valid
+        if (puc_status !== 'VALID') {
+          rejection_reasons.push(`Pollution Under Control (PUC) certificate expired on ${puc_valid_until}`);
+        }
+
+        // Rule 3: Vendor Status Active
+        if (!isVendorActive) {
+          rejection_reasons.push(`Vendor '${vendor?.vendor_name || vendorCode}' is deactivated or barred in plant master registry`);
+        }
+
+        const compliance_status = rejection_reasons.length === 0 ? 'ALLOWED' : 'DENIED';
+
+        return {
+          id: 'mov-' + Date.now(),
+          movement_id: 'mov-' + Math.random().toString(36).substring(2, 9),
+          gate_id: activeGate,
+          movement_type: movementType,
+          vehicle_number: upperPlate,
+          ocr_confidence: ocrConfidence,
+          owner_name: owner_name,
+          vendor_code: vendorCode,
+          vendor_name: vendor?.vendor_name || 'Generic Plant Transporter',
+          rc_status: rc_status,
+          puc_valid_until: puc_valid_until,
+          puc_status: puc_status,
+          vehicle_class: vehicle_class,
+          insurance_upto: insurance_upto,
+          is_vendor_active: isVendorActive,
+          is_blacklisted: isBlacklisted,
+          compliance_status: compliance_status,
+          rejection_reasons: rejection_reasons,
+          guard_id: currentUser ? currentUser.employee_id : 'GUARD-8812',
+          created_at: new Date().toISOString()
+        };
+      };
+
+      const executeVerification = (plate, vendorCode, scenario) => {
+        setIsScanning(true);
+        setTimeout(() => {
+          const evalResult = evaluateCompliance(plate, vendorCode, scenario);
+          setDecision(evalResult);
+          setMovements(prev => [evalResult, ...prev]);
+          setIsScanning(false);
+
+          if (evalResult.is_blacklisted) {
+            setSopAlert(`🚨 SECURITY ALERT: Blacklisted vehicle ${evalResult.vehicle_number} detected! Barrier Locked. Detain in Bay 3.`);
+          }
+        }, 350);
+      };
+
+      const handleOverrideSubmit = (e) => {
+        e.preventDefault();
+        setOverrideError(null);
+
+        if (overridePin.trim().toUpperCase() !== 'SUPER88') {
+          setOverrideError('Invalid Supervisor Master PIN. Only code SUPER88 is authorized.');
+          return;
+        }
+
+        if (!overrideReason.trim()) {
+          setOverrideError('Supervisor justification reason is mandatory for statutory compliance.');
+          return;
+        }
+
+        if (!decision) return;
+
+        const updatedDecision = {
+          ...decision,
+          compliance_status: 'OVERRIDDEN',
+          override_reason: overrideReason.trim(),
+          overridden_by: currentUser ? currentUser.full_name : 'Supervisor Alok Gupta',
+          overridden_at: new Date().toISOString()
+        };
+
+        setDecision(updatedDecision);
+        setMovements(prev => prev.map(m => m.id === decision.id ? updatedDecision : m));
+        setIsOverrideOpen(false);
+        setOverrideReason('');
+      };
+
+      const loadPreset = (plate, vendorCode, scenario) => {
+        setVehicleNumber(plate);
+        setSelectedVendorCode(vendorCode);
+        setSelectedScenario(scenario);
+      };
+
+      // Run All 8 Multi-Scenario Edge Testcases Sequentially
+      const runBatchSimulation = async () => {
+        setIsBatchRunning(true);
+        const testCases = [
+          { plate: 'AP31TJ9988', vendor: 'VEND-TATALOG-01', scenario: 'ALLOWED' },
+          { plate: 'MH12AB5678', vendor: 'VEND-JINDAL-02', scenario: 'EXPIRED_PUC' },
+          { plate: 'AP31XX0001', vendor: 'VEND-VIZAG-03', scenario: 'SUSPENDED_RC' },
+          { plate: 'AP31CG7744', vendor: 'VEND-VIZAG-03', scenario: 'ALLOWED' },
+          { plate: 'AP31AP8821', vendor: 'VEND-APEX-04', scenario: 'ALLOWED' },
+          { plate: 'AP31TJ9988', vendor: 'VEND-BLACKLIST-99', scenario: 'INACTIVE' },
+          { plate: 'DL01AB1234', vendor: 'VEND-BLACKLIST-99', scenario: 'BLACKLISTED' },
+          { plate: 'OD02NF0000', vendor: 'VEND-APEX-04', scenario: 'NOT_FOUND' }
+        ];
+
+        for (const tc of testCases) {
+          loadPreset(tc.plate, tc.vendor, tc.scenario);
+          executeVerification(tc.plate, tc.vendor, tc.scenario);
+          await new Promise(r => setTimeout(r, 450));
+        }
+        setIsBatchRunning(false);
+      };
+
+      // Blacklist Add/Remove Handlers
+      const handleAddBlacklist = (e) => {
+        e.preventDefault();
+        if (!newBlkPlate.trim()) return;
+
+        const newItem = {
+          id: 'blk-' + Date.now(),
+          vehicle_number: newBlkPlate.trim().toUpperCase().replace(/\s+/g, ''),
+          vendor_name: newBlkVendor.trim() || 'Unspecified Logistics Carrier',
+          blacklisted_reason: newBlkReason.trim() || 'Flagged for statutory safety violation',
+          flagged_by: currentUser ? currentUser.employee_id : 'GUARD-8812',
+          flagged_date: new Date().toISOString().split('T')[0]
+        };
+
+        setBlacklist(prev => [newItem, ...prev]);
+        setNewBlkPlate('');
+        setNewBlkReason('');
+        setIsAddBlacklistOpen(false);
+      };
+
+      const handleRemoveBlacklist = (id) => {
+        setBlacklist(prev => prev.filter(b => b.id !== id));
+      };
+
+      // Virtual Touch-Keyboard handler for rugged tablets
+      const handleVirtualKeyPress = (char) => {
+        if (char === 'BACKSPACE') {
+          setVehicleNumber(prev => prev.slice(0, -1));
+        } else if (char === 'CLEAR') {
+          setVehicleNumber('');
+        } else {
+          setVehicleNumber(prev => (prev + char).toUpperCase().slice(0, 10));
+        }
+      };
+
+      // One-touch SOP radio emergency call
+      const handleTriggerEmergencyCall = (recipient, ext) => {
+        setSopAlert(`🚨 Emergency radio dispatch initiated to ${recipient} (Ext: ${ext}). Shift Code #EMG-${Math.floor(1000 + Math.random()*9000)} logged.`);
+        setTimeout(() => setSopAlert(null), 5500);
+      };
+
+      // Supervisor Governance Actions
+      const handleToggleVendor = (vendorCode) => {
+        setVendors(prev => prev.map(v => {
+          if (v.vendor_code === vendorCode) {
+            return { ...v, is_active: !v.is_active };
+          }
+          return v;
+        }));
+      };
+
+      const handleExportAuditCSV = () => {
+        const headers = ['ID,Gate,VehicleNumber,Vendor,OwnerName,RCStatus,PUCValidity,ComplianceStatus,RejectionReasons,CreatedAt\n'];
+        const rows = movements.map(m => (
+          `"${m.id}","${m.gate_id}","${m.vehicle_number}","${m.vendor_name}","${m.owner_name}","${m.rc_status}","${m.puc_valid_until}","${m.compliance_status}","${(m.rejection_reasons || []).join('; ')}","${m.created_at}"`
+        ));
+        const blob = new Blob([headers.join('') + rows.join('\n')], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `SmeltIQ_Gate_Audit_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+      };
+
+      const handleLogout = () => {
+        try {
+          localStorage.removeItem('smeltiq_user');
+        } catch (e) {}
+        setCurrentUser(null);
+      };
+
+      const handleAuthSuccess = (user) => {
+        try {
+          localStorage.setItem('smeltiq_user', JSON.stringify(user));
+        } catch (e) {}
+        setCurrentUser(user);
+      };
+
+      // Metric Counts
+      const allowedCount = movements.filter(m => m.compliance_status === 'ALLOWED').length;
+      const deniedCount = movements.filter(m => m.compliance_status === 'DENIED').length;
+      const overriddenCount = movements.filter(m => m.compliance_status === 'OVERRIDDEN').length;
+      const totalScans = movements.length;
+
+      // Filtered blacklist entries
+      const filteredBlacklist = blacklist.filter(item => {
+        const query = blacklistSearch.toLowerCase();
+        return (
+          item.vehicle_number.toLowerCase().includes(query) ||
+          item.vendor_name.toLowerCase().includes(query) ||
+          item.blacklisted_reason.toLowerCase().includes(query) ||
+          item.flagged_by.toLowerCase().includes(query)
+        );
+      });
+
+      // If user logs out, show dedicated AuthPage
+      if (!currentUser) {
+        return <AuthPage onAuthSuccess={handleAuthSuccess} />;
+      }
+
+      // Reusable Navigation Content for Sidebar & Slide-Out Drawer
+      const renderNavigationContent = () => (
+        <div className="flex flex-col h-full bg-white text-slate-800">
+          {/* Logo & Brand Header */}
+          <div className="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50/70">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-sm shrink-0">
+                <Icons.Factory />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center space-x-1.5">
+                  <span className="font-extrabold text-base text-slate-900 tracking-tight">SmeltIQ</span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 font-bold">
+                    v2.4
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 truncate font-medium">Vizag Steel Gate Operations</p>
+              </div>
+            </div>
+
+            {/* Close 'X' Button on Drawer */}
+            <button
+              onClick={() => setIsSidebarOpenMobile(false)}
+              className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 border border-slate-200 transition active:scale-95 flex items-center justify-center min-w-[36px] min-h-[36px] lg:hidden"
+              aria-label="Close navigation menu"
+              title="Close navigation menu"
+            >
+              <Icons.X />
+            </button>
+          </div>
+
+          {/* Operator Context Section */}
+          <div className="p-4 border-b border-slate-200 bg-white">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+              Operator Context
+            </div>
+
+            {/* User Profile Card */}
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center space-x-3 mb-3 shadow-xs">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center font-bold text-white shadow-xs text-sm shrink-0">
+                {currentUser.full_name ? currentUser.full_name.charAt(0) : 'U'}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="font-semibold text-xs text-slate-900 truncate">
+                  {currentUser.full_name}
+                </div>
+                <div className="flex items-center space-x-1.5 mt-1">
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                    currentUser.role === 'ADMIN'
+                      ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                      : currentUser.role === 'PLANT_SUPERVISOR'
+                      ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                      : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                  }`}>
+                    {currentUser.role === 'GATE_GUARD' ? 'Gate Guard' : currentUser.role === 'PLANT_SUPERVISOR' ? 'Supervisor' : 'Admin'}
+                  </span>
+                  <span className="text-[10px] font-mono text-slate-500 truncate">
+                    {currentUser.employee_id}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Active Post Selector */}
+            <div>
+              <label className="text-[10px] font-semibold uppercase text-slate-500 block mb-1">
+                Active Post Location
+              </label>
+              <div className="relative">
+                <select
+                  value={activeGate}
+                  onChange={(e) => setActiveGate(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20 appearance-none cursor-pointer pr-8"
+                >
+                  <option value="Gate 01 - North Material Entrance">Gate 01 - North Material Entrance</option>
+                  <option value="Gate 02 - Inbound Weighbridge">Gate 02 - Inbound Weighbridge</option>
+                  <option value="Gate 03 - Finished Steel Exit">Gate 03 - Finished Steel Exit</option>
+                </select>
+                <div className="absolute right-2.5 top-2.5 pointer-events-none text-slate-400">
+                  <Icons.ChevronDown />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Navigation Menu Items */}
+          <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-3 py-1">
+              Terminal Navigation
+            </div>
+
+            {/* Item 1: Live Dashboard */}
+            <button
+              onClick={() => {
+                setActivePage('DASHBOARD');
+                setIsSidebarOpenMobile(false);
+              }}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition ${
+                activePage === 'DASHBOARD'
+                  ? 'bg-blue-600 text-white shadow-sm font-extrabold'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              }`}
+            >
+              <div className="flex items-center space-x-2.5">
+                <Icons.LayoutDashboard />
+                <span>Live Gate Dashboard</span>
+              </div>
+              <span className={`w-2 h-2 rounded-full ${activePage === 'DASHBOARD' ? 'bg-white' : 'bg-emerald-500 animate-pulse'}`} />
+            </button>
+
+            {/* Item 2: Manual Plate Entry */}
+            <button
+              onClick={() => {
+                setActivePage('MANUAL_ENTRY');
+                setIsSidebarOpenMobile(false);
+              }}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition ${
+                activePage === 'MANUAL_ENTRY'
+                  ? 'bg-blue-600 text-white shadow-sm font-extrabold'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              }`}
+            >
+              <div className="flex items-center space-x-2.5">
+                <Icons.Keyboard />
+                <span>Manual Plate Entry</span>
+              </div>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
+                activePage === 'MANUAL_ENTRY' ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-600 border border-slate-200'
+              }`}>
+                RUGGED
+              </span>
+            </button>
+
+            {/* Item 3: Movement Logs */}
+            <button
+              onClick={() => {
+                setActivePage('LOGS');
+                setIsSidebarOpenMobile(false);
+              }}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition ${
+                activePage === 'LOGS'
+                  ? 'bg-blue-600 text-white shadow-sm font-extrabold'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              }`}
+            >
+              <div className="flex items-center space-x-2.5">
+                <Icons.History />
+                <span>Gate Movement Logs</span>
+              </div>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-bold ${
+                activePage === 'LOGS' ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-700 border border-slate-200'
+              }`}>
+                {movements.length}
+              </span>
+            </button>
+
+            {/* Item 4: Watchlist & Blacklist */}
+            <button
+              onClick={() => {
+                setActivePage('WATCHLIST');
+                setIsSidebarOpenMobile(false);
+              }}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition ${
+                activePage === 'WATCHLIST'
+                  ? 'bg-rose-600 text-white shadow-sm font-extrabold'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              }`}
+            >
+              <div className="flex items-center space-x-2.5">
+                <Icons.ShieldAlert />
+                <span>Watchlist & Blacklist</span>
+              </div>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-bold ${
+                activePage === 'WATCHLIST' ? 'bg-rose-700 text-white' : 'bg-rose-50 text-rose-700 border border-rose-200'
+              }`}>
+                {blacklist.length}
+              </span>
+            </button>
+
+            {/* Item 5: Safety SOP */}
+            <button
+              onClick={() => {
+                setActivePage('SAFETY_SOP');
+                setIsSidebarOpenMobile(false);
+              }}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition ${
+                activePage === 'SAFETY_SOP'
+                  ? 'bg-blue-600 text-white shadow-sm font-extrabold'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              }`}
+            >
+              <div className="flex items-center space-x-2.5">
+                <Icons.BookOpen />
+                <span>Plant Safety SOP & Help</span>
+              </div>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
+                activePage === 'SAFETY_SOP' ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-600 border border-slate-200'
+              }`}>
+                SOP
+              </span>
+            </button>
+          </nav>
+
+          {/* Supervisor Quick Access Desk */}
+          {(currentUser.role === 'PLANT_SUPERVISOR' || currentUser.role === 'ADMIN') && (
+            <div className="p-3 border-t border-slate-200">
+              <button
+                onClick={() => setIsSupervisorDeskOpen(true)}
+                className="w-full py-2.5 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-bold flex items-center justify-center space-x-2 shadow-xs transition"
+              >
+                <span>⚙️</span>
+                <span>Supervisor Desk</span>
+              </button>
+            </div>
+          )}
+
+          {/* Bottom Logout & Telemetry */}
+          <div className="p-3 border-t border-slate-200 bg-slate-50/60 space-y-2">
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center space-x-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 hover:text-rose-800 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition"
+              title="Clears session & signs out"
+            >
+              <Icons.LogOut />
+              <span>Log Out Operator</span>
+            </button>
+
+            <div className="px-3 pt-1 text-[10px] text-slate-500 flex items-center justify-between">
+              <span className="flex items-center space-x-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>Surepass Sandbox</span>
+              </span>
+              <span className="font-mono text-slate-600">{time}</span>
+            </div>
+          </div>
+        </div>
+      );
+
+      return (
+        <div className="min-h-screen flex bg-slate-50 text-slate-900 font-sans">
+          {/* Desktop Left Sticky Navigation Sidebar */}
+          <aside className="w-72 bg-white border-r border-slate-200 sticky top-0 h-screen hidden lg:block z-40 shrink-0 shadow-xs">
+            {renderNavigationContent()}
+          </aside>
+
+          {/* Slide-Out Navigation Drawer for Mobile/Tablet */}
+          {isSidebarOpenMobile && (
+            <div className="fixed inset-0 z-50 lg:hidden">
+              <div
+                className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"
+                onClick={() => setIsSidebarOpenMobile(false)}
+                aria-hidden="true"
+              />
+              <aside
+                className="fixed top-0 bottom-0 left-0 w-80 max-w-[85vw] h-full z-50 shadow-2xl bg-white border-r border-slate-200 transform transition-transform"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Navigation drawer"
+              >
+                {renderNavigationContent()}
+              </aside>
+            </div>
+          )}
+
+          {/* Main Terminal Viewport Workspace */}
+          <div className="flex-1 flex flex-col min-w-0 min-h-screen overflow-y-auto">
+            {/* Top Cruip Simple Light Operator Header Bar */}
+            <header className="bg-white/80 border-b border-slate-200 px-4 py-3 sticky top-0 z-30 backdrop-blur-md">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center space-x-3">
+                  {/* High-Visibility, Touch-Friendly Hamburger Menu Button (Open & Hide on Click) */}
+                  <button
+                    onClick={() => setIsSidebarOpenMobile(prev => !prev)}
+                    className={`p-2.5 sm:px-3 sm:py-2 rounded-xl border shadow-xs transition-all flex items-center space-x-2 min-h-[44px] min-w-[44px] touch-manipulation focus:outline-none focus:ring-2 focus:ring-blue-500/30 active:scale-95 ${
+                      isSidebarOpenMobile
+                        ? 'bg-blue-50 border-blue-300 text-blue-600'
+                        : 'bg-white hover:bg-slate-50 border-slate-200 hover:border-slate-300 text-slate-700'
+                    }`}
+                    aria-label={isSidebarOpenMobile ? 'Close navigation menu' : 'Open navigation menu'}
+                    aria-expanded={isSidebarOpenMobile}
+                    title="Toggle navigation menu (Click to Open or Hide)"
+                  >
+                    {isSidebarOpenMobile ? <Icons.X /> : <Icons.Menu />}
+                    <span className="text-xs font-bold tracking-wide uppercase font-mono hidden sm:inline">
+                      {isSidebarOpenMobile ? 'Close' : 'Menu'}
+                    </span>
+                  </button>
+
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <h1 className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight">
+                        {activePage === 'DASHBOARD' && 'Live Gate ANPR Dashboard'}
+                        {activePage === 'MANUAL_ENTRY' && 'Manual Plate Entry & Verification'}
+                        {activePage === 'LOGS' && 'Gate Movement Audit History'}
+                        {activePage === 'WATCHLIST' && 'Plant Watchlist & Blacklist Registry'}
+                        {activePage === 'SAFETY_SOP' && 'Plant Safety SOP & Emergency Protocol'}
+                      </h1>
+                    </div>
+                    <p className="text-xs text-slate-500 hidden sm:block">
+                      Post: <span className="font-semibold text-blue-600">{activeGate}</span> • Operator: <span className="font-semibold text-slate-700">{currentUser.full_name}</span>
+                    </p>
+                  </div>
+                </div>
+
+                {/* Right Header Status Pills */}
+                <div className="flex items-center space-x-2 text-xs">
+                  <div className="px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-semibold hidden sm:flex items-center space-x-1.5 shadow-xs">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span>Surepass RTO Live</span>
+                  </div>
+                  <div className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-slate-700 font-mono text-[11px] flex items-center space-x-1.5">
+                    <Icons.Clock />
+                    <span>{time}</span>
+                  </div>
+                  {(currentUser.role === 'PLANT_SUPERVISOR' || currentUser.role === 'ADMIN') && (
+                    <button
+                      onClick={() => setIsSupervisorDeskOpen(true)}
+                      className="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold flex items-center space-x-1 shadow-xs transition active:scale-95"
+                    >
+                      <span>⚙️</span>
+                      <span className="hidden sm:inline">Desk</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </header>
+
+            {/* SOP Global Alert Banner (if triggered) */}
+            {sopAlert && (
+              <div className="bg-amber-50 border-b border-amber-200 px-4 py-2.5 text-amber-900 text-xs font-semibold flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Icons.Radio />
+                  <span>{sopAlert}</span>
+                </div>
+                <button onClick={() => setSopAlert(null)} className="text-amber-700 hover:text-amber-900 font-bold">✕</button>
+              </div>
+            )}
+
+            {/* Main Page Routing Switcher */}
+            <main className="flex-1 p-4 sm:p-6 space-y-6 max-w-7xl w-full mx-auto">
+              {/* ========================================================= */}
+              {/* PAGE 1: LIVE GATE DASHBOARD                               */}
+              {/* ========================================================= */}
+              {activePage === 'DASHBOARD' && (
+                <div className="space-y-6">
+                  {/* Top Real-Time KPI Metric Cards in Cruip Simple Light */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+                    <div className="bg-white border border-slate-200 rounded-2xl p-4 flex justify-between items-center shadow-sm">
+                      <div>
+                        <span className="text-[11px] text-slate-500 uppercase font-semibold">Vehicles Entered</span>
+                        <div className="text-2xl font-extrabold font-mono text-emerald-600 mt-0.5">
+                          {142 + allowedCount}
+                        </div>
+                        <span className="text-[10px] text-slate-400">Authorized Plant Transit</span>
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100">
+                        <Icons.CheckCircle />
+                      </div>
+                    </div>
+
+                    <div className="bg-white border border-slate-200 rounded-2xl p-4 flex justify-between items-center shadow-sm">
+                      <div>
+                        <span className="text-[11px] text-slate-500 uppercase font-semibold">Total Scans Today</span>
+                        <div className="text-2xl font-extrabold font-mono text-blue-600 mt-0.5">
+                          {189 + totalScans}
+                        </div>
+                        <span className="text-[10px] text-slate-400">Optical ANPR Captures</span>
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600 border border-blue-100">
+                        <Icons.Scan />
+                      </div>
+                    </div>
+
+                    <div className="bg-white border border-slate-200 rounded-2xl p-4 flex justify-between items-center shadow-sm">
+                      <div>
+                        <span className="text-[11px] text-rose-600 uppercase font-semibold">Barred Violations</span>
+                        <div className="text-2xl font-extrabold font-mono text-rose-600 mt-0.5">
+                          {7 + deniedCount}
+                        </div>
+                        <span className="text-[10px] text-slate-400">Barred at Gate Barrier</span>
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-rose-50 text-rose-600 border border-rose-100">
+                        <Icons.ShieldAlert />
+                      </div>
+                    </div>
+
+                    <div className="bg-white border border-slate-200 rounded-2xl p-4 flex justify-between items-center shadow-sm">
+                      <div>
+                        <span className="text-[11px] text-amber-700 uppercase font-semibold">Manual Overrides</span>
+                        <div className="text-2xl font-extrabold font-mono text-amber-600 mt-0.5">
+                          {2 + overriddenCount}
+                        </div>
+                        <span className="text-[10px] text-slate-400">Supervisor PIN Cleared</span>
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-amber-50 text-amber-600 border border-amber-100">
+                        <Icons.KeyRound />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 2-Column Main Layout */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                    {/* Left Column: ANPR Live Stream Feed */}
+                    <div className="lg:col-span-5 space-y-4">
+                      <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center space-x-2">
+                            <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600 border border-blue-100">
+                              <Icons.Camera />
+                            </div>
+                            <h2 className="text-sm font-bold tracking-wide text-slate-900 uppercase">
+                              ANPR Camera Optical Viewfinder
+                            </h2>
+                          </div>
+                          <button
+                            onClick={startCamera}
+                            className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-blue-700 border border-slate-200 flex items-center space-x-1 transition"
+                          >
+                            <span>{cameraActive ? 'Camera Live' : 'Open Camera'}</span>
+                          </button>
+                        </div>
+
+                        {/* Viewport Frame with Laser Scanning Overlay */}
+                        <div className="relative aspect-video w-full rounded-xl overflow-hidden bg-slate-950 border border-slate-800 flex items-center justify-center text-white">
+                          {cameraActive ? (
+                            <video ref={videoRef} playsInline muted className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="text-center p-6 text-slate-400 text-xs flex flex-col items-center">
+                              <div className="w-12 h-12 rounded-full bg-slate-900 flex items-center justify-center mb-2 text-slate-500">
+                                <Icons.Camera />
+                              </div>
+                              <span className="font-semibold text-slate-300">Live ANPR OCR Optical Camera Feed</span>
+                              <span className="text-[10px] text-slate-500 mt-1">Simulated camera frame with bounding laser</span>
+                            </div>
+                          )}
+
+                          {/* Optical Laser Scanning Bounding Box Target */}
+                          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                            <div className="w-3/4 max-w-xs h-20 border-2 border-dashed border-sky-400/80 rounded-xl relative flex items-center justify-center bg-sky-500/10">
+                              <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent animate-scan shadow-lg shadow-cyan-400" />
+                              <span className="text-[10px] font-mono font-semibold text-sky-200 bg-slate-950/80 px-2 py-0.5 rounded border border-sky-500/30">
+                                ANPR TARGET • {activeGate}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Action Trigger: Simulate Auto-Capture */}
+                        <div className="mt-3 flex gap-2">
+                          <button
+                            onClick={() => {
+                              captureFrame();
+                              executeVerification(vehicleNumber, selectedVendorCode, selectedScenario);
+                            }}
+                            disabled={isScanning}
+                            className="flex-1 py-3 px-4 rounded-xl font-bold text-xs uppercase tracking-wider bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow transition active:scale-[0.99] flex items-center justify-center space-x-2"
+                          >
+                            <Icons.Scan />
+                            <span>{isScanning ? 'Grabbing Frame & Running OCR...' : 'Simulate Auto-Capture'}</span>
+                          </button>
+                        </div>
+
+                        {/* Multi-Scenario Dummy Testcases Matrix (All 8 Cases) */}
+                        <div className="mt-4 pt-3 border-t border-slate-200">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[11px] font-bold text-slate-600 uppercase flex items-center space-x-1">
+                              <Icons.Sparkles />
+                              <span>Dummy Test Suite (8 Edge Scenarios)</span>
+                            </span>
+                            <button
+                              onClick={() => runBatchSimulation()}
+                              disabled={isBatchRunning}
+                              className="text-[10px] px-2 py-0.5 rounded bg-blue-50 text-blue-700 hover:bg-blue-100 font-semibold border border-blue-200 transition flex items-center space-x-1"
+                              title="Simulate all 8 testcases sequentially into audit log"
+                            >
+                              <span>{isBatchRunning ? 'Running Suite...' : '⚡ Run Full Test Suite'}</span>
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
+                            {/* Case 1 */}
+                            <button
+                              onClick={() => {
+                                loadPreset('AP31TJ9988', 'VEND-TATALOG-01', 'ALLOWED');
+                                executeVerification('AP31TJ9988', 'VEND-TATALOG-01', 'ALLOWED');
+                              }}
+                              className="p-2 rounded-xl bg-emerald-50/70 hover:bg-emerald-100/70 border border-emerald-200 text-left transition"
+                            >
+                              <div className="text-[11px] font-mono font-bold text-emerald-800 flex justify-between">
+                                <span>AP31TJ9988</span>
+                                <span className="text-[9px] bg-emerald-200/70 text-emerald-900 px-1 rounded font-bold">PASS</span>
+                              </div>
+                              <div className="text-[10px] text-slate-600 truncate mt-0.5">Tata Steel • Valid PUC</div>
+                            </button>
+
+                            {/* Case 2 */}
+                            <button
+                              onClick={() => {
+                                loadPreset('MH12AB5678', 'VEND-JINDAL-02', 'EXPIRED_PUC');
+                                executeVerification('MH12AB5678', 'VEND-JINDAL-02', 'EXPIRED_PUC');
+                              }}
+                              className="p-2 rounded-xl bg-rose-50/70 hover:bg-rose-100/70 border border-rose-200 text-left transition"
+                            >
+                              <div className="text-[11px] font-mono font-bold text-rose-800 flex justify-between">
+                                <span>MH12AB5678</span>
+                                <span className="text-[9px] bg-rose-200/70 text-rose-900 px-1 rounded font-bold">DENY</span>
+                              </div>
+                              <div className="text-[10px] text-slate-600 truncate mt-0.5">Jindal • Expired PUC (-22d)</div>
+                            </button>
+
+                            {/* Case 3 */}
+                            <button
+                              onClick={() => {
+                                loadPreset('AP31XX0001', 'VEND-VIZAG-03', 'SUSPENDED_RC');
+                                executeVerification('AP31XX0001', 'VEND-VIZAG-03', 'SUSPENDED_RC');
+                              }}
+                              className="p-2 rounded-xl bg-amber-50/70 hover:bg-amber-100/70 border border-amber-200 text-left transition"
+                            >
+                              <div className="text-[11px] font-mono font-bold text-amber-900 flex justify-between">
+                                <span>AP31XX0001</span>
+                                <span className="text-[9px] bg-amber-200/70 text-amber-900 px-1 rounded font-bold">OVERRIDE</span>
+                              </div>
+                              <div className="text-[10px] text-slate-600 truncate mt-0.5">Vizag Coastal • Suspended RC</div>
+                            </button>
+
+                            {/* Case 4 */}
+                            <button
+                              onClick={() => {
+                                loadPreset('AP31CG7744', 'VEND-VIZAG-03', 'ALLOWED');
+                                executeVerification('AP31CG7744', 'VEND-VIZAG-03', 'ALLOWED');
+                              }}
+                              className="p-2 rounded-xl bg-emerald-50/70 hover:bg-emerald-100/70 border border-emerald-200 text-left transition"
+                            >
+                              <div className="text-[11px] font-mono font-bold text-emerald-800 flex justify-between">
+                                <span>AP31CG7744</span>
+                                <span className="text-[9px] bg-emerald-200/70 text-emerald-900 px-1 rounded font-bold">PASS</span>
+                              </div>
+                              <div className="text-[10px] text-slate-600 truncate mt-0.5">Coastal Slag Tipper (Pass)</div>
+                            </button>
+
+                            {/* Case 5 */}
+                            <button
+                              onClick={() => {
+                                loadPreset('AP31AP8821', 'VEND-APEX-04', 'ALLOWED');
+                                executeVerification('AP31AP8821', 'VEND-APEX-04', 'ALLOWED');
+                              }}
+                              className="p-2 rounded-xl bg-emerald-50/70 hover:bg-emerald-100/70 border border-emerald-200 text-left transition"
+                            >
+                              <div className="text-[11px] font-mono font-bold text-emerald-800 flex justify-between">
+                                <span>AP31AP8821</span>
+                                <span className="text-[9px] bg-emerald-200/70 text-emerald-900 px-1 rounded font-bold">PASS</span>
+                              </div>
+                              <div className="text-[10px] text-slate-600 truncate mt-0.5">Apex Ore Hauler (Pass)</div>
+                            </button>
+
+                            {/* Case 6 */}
+                            <button
+                              onClick={() => {
+                                loadPreset('AP31TJ9988', 'VEND-BLACKLIST-99', 'INACTIVE');
+                                executeVerification('AP31TJ9988', 'VEND-BLACKLIST-99', 'INACTIVE');
+                              }}
+                              className="p-2 rounded-xl bg-rose-50/70 hover:bg-rose-100/70 border border-rose-200 text-left transition"
+                            >
+                              <div className="text-[11px] font-mono font-bold text-rose-800 flex justify-between">
+                                <span>AP31TJ9988</span>
+                                <span className="text-[9px] bg-rose-200/70 text-rose-900 px-1 rounded font-bold">DENY</span>
+                              </div>
+                              <div className="text-[10px] text-slate-600 truncate mt-0.5">Deactivated Transporter</div>
+                            </button>
+
+                            {/* Case 7 */}
+                            <button
+                              onClick={() => {
+                                loadPreset('DL01AB1234', 'VEND-BLACKLIST-99', 'BLACKLISTED');
+                                executeVerification('DL01AB1234', 'VEND-BLACKLIST-99', 'BLACKLISTED');
+                              }}
+                              className="p-2 rounded-xl bg-rose-50/70 hover:bg-rose-100/70 border border-rose-200 text-left transition"
+                            >
+                              <div className="text-[11px] font-mono font-bold text-rose-800 flex justify-between">
+                                <span>DL01AB1234</span>
+                                <span className="text-[9px] bg-rose-200/70 text-rose-900 px-1 rounded font-bold">BLACKLIST</span>
+                              </div>
+                              <div className="text-[10px] text-slate-600 truncate mt-0.5">Multi-Violation Flagged</div>
+                            </button>
+
+                            {/* Case 8 */}
+                            <button
+                              onClick={() => {
+                                loadPreset('OD02NF0000', 'VEND-APEX-04', 'NOT_FOUND');
+                                executeVerification('OD02NF0000', 'VEND-APEX-04', 'NOT_FOUND');
+                              }}
+                              className="p-2 rounded-xl bg-rose-50/70 hover:bg-rose-100/70 border border-rose-200 text-left transition"
+                            >
+                              <div className="text-[11px] font-mono font-bold text-rose-800 flex justify-between">
+                                <span>OD02NF0000</span>
+                                <span className="text-[9px] bg-rose-200/70 text-rose-900 px-1 rounded font-bold">404</span>
+                              </div>
+                              <div className="text-[10px] text-slate-600 truncate mt-0.5">Not Found on RTO Database</div>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right Column: Real-Time Compliance Decision Stream */}
+                    <div className="lg:col-span-7 space-y-4">
+                      {decision ? (
+                        <div
+                          className={`rounded-2xl border overflow-hidden shadow-md transition ${
+                            decision.compliance_status === 'ALLOWED'
+                              ? 'bg-white border-emerald-300 glow-emerald'
+                              : decision.compliance_status === 'OVERRIDDEN'
+                              ? 'bg-white border-amber-300 glow-amber'
+                              : 'bg-white border-rose-300 glow-rose'
+                          }`}
+                        >
+                          {/* Banner Header */}
+                          <div
+                            className={`px-5 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 ${
+                              decision.compliance_status === 'ALLOWED'
+                                ? 'bg-emerald-50/90 border-b border-emerald-200'
+                                : decision.compliance_status === 'OVERRIDDEN'
+                                ? 'bg-amber-50/90 border-b border-amber-200'
+                                : 'bg-rose-50/90 border-b border-rose-200'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div
+                                className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-sm ${
+                                  decision.compliance_status === 'ALLOWED'
+                                    ? 'bg-emerald-600 text-white'
+                                    : decision.compliance_status === 'OVERRIDDEN'
+                                    ? 'bg-amber-600 text-white'
+                                    : 'bg-rose-600 text-white'
+                                }`}
+                              >
+                                {decision.compliance_status === 'ALLOWED' && <Icons.CheckCircle />}
+                                {decision.compliance_status === 'OVERRIDDEN' && <Icons.AlertTriangle />}
+                                {decision.compliance_status === 'DENIED' && <Icons.XCircle />}
+                              </div>
+
+                              <div>
+                                <div className="flex items-center space-x-2">
+                                  <span className={`text-base sm:text-lg font-extrabold uppercase font-mono tracking-wide ${
+                                    decision.compliance_status === 'ALLOWED'
+                                      ? 'text-emerald-800'
+                                      : decision.compliance_status === 'OVERRIDDEN'
+                                      ? 'text-amber-900'
+                                      : 'text-rose-800'
+                                  }`}>
+                                    {decision.compliance_status === 'ALLOWED' && 'ALLOWED — AUTHORIZED GATE PASS'}
+                                    {decision.compliance_status === 'DENIED' && 'DENIED — STATUTORY VIOLATION'}
+                                    {decision.compliance_status === 'OVERRIDDEN' && 'OVERRIDDEN — SUPERVISOR PASS'}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-slate-600">
+                                  Plate: <span className="font-mono font-bold text-slate-900">{decision.vehicle_number}</span> • Gate: {decision.gate_id}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex items-center space-x-2">
+                              {decision.compliance_status === 'ALLOWED' && (
+                                <button
+                                  onClick={() => alert(`Gate Barrier Opening for ${decision.vehicle_number} at ${activeGate}. RFID Barrier Trigger Sent!`)}
+                                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider flex items-center space-x-1.5 shadow-sm transition active:scale-95"
+                                >
+                                  <span>Open Barrier</span>
+                                </button>
+                              )}
+                              {decision.compliance_status === 'DENIED' && (
+                                <button
+                                  onClick={() => setIsOverrideOpen(true)}
+                                  className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs uppercase tracking-wider flex items-center space-x-1.5 shadow-sm transition active:scale-95"
+                                >
+                                  <Icons.KeyRound />
+                                  <span>Supervisor Override</span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Statutory Records Grid */}
+                          <div className="p-5 space-y-4">
+                            {decision.rejection_reasons.length > 0 && (
+                              <div className="p-4 rounded-xl bg-rose-50 border border-rose-200">
+                                <span className="text-xs font-bold text-rose-800 uppercase block mb-1">
+                                  Statutory Compliance Violations:
+                                </span>
+                                <ul className="text-xs text-rose-700 space-y-1 list-disc pl-4">
+                                  {decision.rejection_reasons.map((r, i) => (
+                                    <li key={i}>{r}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+
+                            {decision.override_reason && (
+                              <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200">
+                                <span className="text-[11px] font-bold text-amber-900 uppercase block">
+                                  Supervisor Override Justification:
+                                </span>
+                                <p className="text-xs text-amber-800 mt-0.5">{decision.override_reason}</p>
+                              </div>
+                            )}
+
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+                              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                                <span className="text-[10px] text-slate-500 uppercase block font-semibold">RC Registered Owner</span>
+                                <span className="font-semibold text-xs text-slate-800 truncate block">{decision.owner_name}</span>
+                                <span className="text-[10px] text-slate-400">Surepass RTO Verified</span>
+                              </div>
+
+                              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                                <span className="text-[10px] text-slate-500 uppercase block font-semibold">RC Status</span>
+                                <span className={`px-2 py-0.5 rounded text-xs font-mono font-bold inline-block ${decision.rc_status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
+                                  {decision.rc_status}
+                                </span>
+                                <span className="text-[10px] text-slate-400 block mt-1">Rule 1 Requirement</span>
+                              </div>
+
+                              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                                <span className="text-[10px] text-slate-500 uppercase block font-semibold">PUC Certificate</span>
+                                <span className="font-mono text-xs text-slate-800 block">{decision.puc_valid_until || 'N/A'}</span>
+                                <span className={`text-[10px] font-semibold mt-1 inline-block ${decision.puc_status === 'VALID' ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                  {decision.puc_status === 'VALID' ? 'VALID (Compliant)' : 'EXPIRED (Violation)'}
+                                </span>
+                              </div>
+
+                              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                                <span className="text-[10px] text-slate-500 uppercase block font-semibold">Logistics Carrier</span>
+                                <span className="font-semibold text-xs text-slate-800 truncate block">{decision.vendor_name}</span>
+                                <span className="text-[10px] text-slate-500 font-mono">{decision.vendor_code}</span>
+                              </div>
+
+                              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                                <span className="text-[10px] text-slate-500 uppercase block font-semibold">Vehicle Class</span>
+                                <span className="font-semibold text-xs text-slate-800 truncate block">{decision.vehicle_class}</span>
+                                <span className="text-[10px] text-slate-400">Commercial Carrier</span>
+                              </div>
+
+                              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                                <span className="text-[10px] text-slate-500 uppercase block font-semibold">Movement ID</span>
+                                <span className="font-mono text-xs text-blue-700 block truncate">{decision.movement_id || decision.id}</span>
+                                <span className="text-[10px] text-slate-400">Supabase Audit Logged</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-8 text-center flex flex-col items-center justify-center min-h-[260px] shadow-sm">
+                          <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-3">
+                            <Icons.ShieldCheck />
+                          </div>
+                          <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide">
+                            Optical ANPR Scanner Ready
+                          </h3>
+                          <p className="text-xs text-slate-500 mt-1 max-w-sm">
+                            Capture vehicle plate via optical stream or select an edge scenario from the left to run statutory compliance verification.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Bottom Section: Live Activity Feed Table */}
+                  <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                    <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/70">
+                      <div className="flex items-center space-x-2">
+                        <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600 border border-blue-100">
+                          <Icons.History />
+                        </div>
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                          Live Gate Activity Stream (Last 10 Movements)
+                        </h3>
+                      </div>
+                      <button
+                        onClick={() => setActivePage('LOGS')}
+                        className="text-xs text-blue-600 hover:text-blue-700 font-semibold"
+                      >
+                        View Full Logs ({movements.length}) →
+                      </button>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse text-xs">
+                        <thead>
+                          <tr className="bg-slate-50 text-slate-600 border-b border-slate-200 font-semibold text-[11px]">
+                            <th className="p-3">Time</th>
+                            <th className="p-3">Gate</th>
+                            <th className="p-3">Vehicle</th>
+                            <th className="p-3">Transporter</th>
+                            <th className="p-3">Compliance</th>
+                            <th className="p-3">Statutory Decision Notes</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 text-slate-800">
+                          {movements.slice(0, 10).map((m) => (
+                            <tr key={m.id || m.movement_id} className="hover:bg-slate-50/80 transition">
+                              <td className="p-3 font-mono text-[11px] text-slate-500 whitespace-nowrap">
+                                {new Date(m.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                              </td>
+                              <td className="p-3 text-slate-600 text-[11px] whitespace-nowrap">{m.gate_id}</td>
+                              <td className="p-3 font-mono font-bold text-slate-900 whitespace-nowrap">{m.vehicle_number}</td>
+                              <td className="p-3 truncate max-w-[150px]">{m.vendor_name || m.vendor_code}</td>
+                              <td className="p-3 whitespace-nowrap">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                  m.compliance_status === 'ALLOWED'
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : m.compliance_status === 'OVERRIDDEN'
+                                    ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                    : 'bg-rose-50 text-rose-700 border border-rose-200'
+                                }`}>
+                                  {m.compliance_status}
+                                </span>
+                              </td>
+                              <td className="p-3 text-slate-600 max-w-[220px] truncate text-[11px]">
+                                {m.compliance_status === 'OVERRIDDEN'
+                                  ? `Override: ${m.override_reason || 'Supervisor Cleared'}`
+                                  : m.rejection_reasons && m.rejection_reasons.length > 0
+                                  ? m.rejection_reasons[0]
+                                  : 'Statutory RC & PUC Passed'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ========================================================= */}
+              {/* PAGE 2: MANUAL NUMBER PLATE ENTRY PAGE                   */}
+              {/* ========================================================= */}
+              {activePage === 'MANUAL_ENTRY' && (
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                  {/* Left Column: Input Form & Rugged Keypad */}
+                  <div className="lg:col-span-6 space-y-4">
+                    <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <div className="p-2 rounded-xl bg-blue-50 text-blue-600 border border-blue-100">
+                            <Icons.Keyboard />
+                          </div>
+                          <div>
+                            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide">
+                              Manual Plate Registration
+                            </h2>
+                            <p className="text-[11px] text-slate-500">
+                              Fallback entry for damaged plates or camera maintenance
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Virtual Keyboard Toggle */}
+                        <button
+                          type="button"
+                          onClick={() => setShowVirtualKeyboard(!showVirtualKeyboard)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 border ${
+                            showVirtualKeyboard
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                              : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                          }`}
+                        >
+                          <Icons.Keyboard />
+                          <span>{showVirtualKeyboard ? 'Hide Keypad' : 'Touch Keypad'}</span>
+                        </button>
+                      </div>
+
+                      {/* Prominent High-Visibility Indian HSRP Number Plate */}
+                      <div>
+                        <label className="text-xs font-bold uppercase tracking-wider text-slate-700 block mb-1.5">
+                          Vehicle Registration Plate (HSRP)
+                        </label>
+                        <div className="p-4 rounded-2xl bg-slate-50 border-2 border-slate-300 flex items-center justify-center">
+                          <div className="w-full max-w-sm h-16 rounded-xl border-2 border-slate-800 bg-white flex items-center px-4 shadow-sm relative">
+                            <div className="w-7 text-center border-r-2 border-blue-600 pr-2 mr-3 flex flex-col items-center shrink-0">
+                              <span className="text-[9px] font-bold text-blue-600 font-mono leading-none">IND</span>
+                              <span className="w-2.5 h-2.5 rounded-full bg-blue-600 mt-1" />
+                            </div>
+                            <input
+                              type="text"
+                              value={vehicleNumber}
+                              onChange={(e) => setVehicleNumber(e.target.value.toUpperCase())}
+                              className="w-full text-center text-xl sm:text-2xl font-mono font-extrabold tracking-widest text-slate-900 focus:outline-none uppercase"
+                              placeholder="AP31TJ9988"
+                            />
+                            {vehicleNumber && (
+                              <button
+                                type="button"
+                                onClick={() => setVehicleNumber('')}
+                                className="text-slate-400 hover:text-slate-600 p-1"
+                                title="Clear plate"
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-[10px] text-slate-500 mt-1 flex justify-between px-1">
+                          <span>Standard Indian RTO Format: [State][District][Series][Number]</span>
+                          <span className="font-mono text-slate-600">{vehicleNumber.length} Characters</span>
+                        </div>
+                      </div>
+
+                      {/* Rugged Virtual Keypad (Industrial Touchscreen Support) */}
+                      {showVirtualKeyboard && (
+                        <div className="p-3.5 bg-slate-100 rounded-2xl border border-slate-200 space-y-2">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-600 flex justify-between items-center">
+                            <span>Industrial Glove-Friendly Virtual Keypad</span>
+                            <span className="text-blue-600 font-mono font-bold">TOUCH KEYBOARD</span>
+                          </div>
+
+                          {/* Digits 0-9 */}
+                          <div className="grid grid-cols-10 gap-1.5">
+                            {['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'].map((digit) => (
+                              <button
+                                key={digit}
+                                type="button"
+                                onClick={() => handleVirtualKeyPress(digit)}
+                                className="h-10 rounded-xl bg-white hover:bg-blue-50 active:bg-blue-100 text-slate-800 hover:text-blue-600 border border-slate-200 shadow-xs font-mono font-bold text-base transition flex items-center justify-center"
+                              >
+                                {digit}
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* QWERTY Row 1 */}
+                          <div className="grid grid-cols-10 gap-1.5">
+                            {['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'].map((k) => (
+                              <button
+                                key={k}
+                                type="button"
+                                onClick={() => handleVirtualKeyPress(k)}
+                                className="h-10 rounded-xl bg-white hover:bg-blue-50 active:bg-blue-100 text-slate-800 hover:text-blue-600 border border-slate-200 shadow-xs font-mono font-bold text-sm transition flex items-center justify-center"
+                              >
+                                {k}
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* QWERTY Row 2 */}
+                          <div className="grid grid-cols-9 gap-1.5 max-w-[90%] mx-auto">
+                            {['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'].map((k) => (
+                              <button
+                                key={k}
+                                type="button"
+                                onClick={() => handleVirtualKeyPress(k)}
+                                className="h-10 rounded-xl bg-white hover:bg-blue-50 active:bg-blue-100 text-slate-800 hover:text-blue-600 border border-slate-200 shadow-xs font-mono font-bold text-sm transition flex items-center justify-center"
+                              >
+                                {k}
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* QWERTY Row 3 + Actions */}
+                          <div className="grid grid-cols-9 gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleVirtualKeyPress('CLEAR')}
+                              className="col-span-1 h-10 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-mono font-bold text-xs shadow-xs transition flex items-center justify-center"
+                            >
+                              CLR
+                            </button>
+                            {['Z', 'X', 'C', 'V', 'B', 'N', 'M'].map((k) => (
+                              <button
+                                key={k}
+                                type="button"
+                                onClick={() => handleVirtualKeyPress(k)}
+                                className="h-10 rounded-xl bg-white hover:bg-blue-50 active:bg-blue-100 text-slate-800 hover:text-blue-600 border border-slate-200 shadow-xs font-mono font-bold text-sm transition flex items-center justify-center"
+                              >
+                                {k}
+                              </button>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() => handleVirtualKeyPress('BACKSPACE')}
+                              className="col-span-1 h-10 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-mono font-bold text-xs shadow-xs transition flex items-center justify-center"
+                            >
+                              ⌫
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Movement Type Toggle */}
+                      <div>
+                        <label className="text-xs font-bold uppercase tracking-wider text-slate-700 block mb-1.5">
+                          Movement Direction
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setMovementType('ENTRY')}
+                            className={`py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2 border ${
+                              movementType === 'ENTRY'
+                                ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                            }`}
+                          >
+                            <span>INBOUND / ENTRY</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setMovementType('EXIT')}
+                            className={`py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2 border ${
+                              movementType === 'EXIT'
+                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                            }`}
+                          >
+                            <span>OUTBOUND / EXIT</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Vendor Selection Dropdown */}
+                      <div>
+                        <label className="text-xs font-bold uppercase tracking-wider text-slate-700 block mb-1">
+                          Logistics Contractor / Transporter
+                        </label>
+                        <select
+                          value={selectedVendorCode}
+                          onChange={(e) => setSelectedVendorCode(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-800 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                        >
+                          {vendors.map(v => (
+                            <option key={v.id} value={v.vendor_code}>
+                              {v.vendor_name} ({v.vendor_code}) {!v.is_active ? '⚠️ [SUSPENDED]' : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Primary Verification Action Button */}
+                      <button
+                        type="button"
+                        onClick={() => executeVerification(vehicleNumber, selectedVendorCode, selectedScenario)}
+                        className="w-full py-3.5 px-6 rounded-xl font-bold text-xs uppercase tracking-wider bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow transition active:scale-[0.99] flex items-center justify-center space-x-2"
+                      >
+                        <Icons.ShieldCheck />
+                        <span>Verify Statutory Records with Surepass</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Live Verification Result Card */}
+                  <div className="lg:col-span-6 space-y-4">
+                    {decision ? (
+                      <div
+                        className={`rounded-2xl border overflow-hidden shadow-md transition ${
+                          decision.compliance_status === 'ALLOWED'
+                            ? 'bg-white border-emerald-300 glow-emerald'
+                            : decision.compliance_status === 'OVERRIDDEN'
+                            ? 'bg-white border-amber-300 glow-amber'
+                            : 'bg-white border-rose-300 glow-rose'
+                        }`}
+                      >
+                        {/* Header Banner */}
+                        <div
+                          className={`px-5 py-4 ${
+                            decision.compliance_status === 'ALLOWED'
+                              ? 'bg-emerald-50 border-b border-emerald-200'
+                              : decision.compliance_status === 'OVERRIDDEN'
+                              ? 'bg-amber-50 border-b border-amber-200'
+                              : 'bg-rose-50 border-b border-rose-200'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className={`text-base sm:text-lg font-extrabold uppercase font-mono tracking-wide ${
+                              decision.compliance_status === 'ALLOWED'
+                                ? 'text-emerald-800'
+                                : decision.compliance_status === 'OVERRIDDEN'
+                                ? 'text-amber-900'
+                                : 'text-rose-800'
+                            }`}>
+                              {decision.compliance_status === 'ALLOWED' && 'STATUS: AUTHORIZED TO PROCEED'}
+                              {decision.compliance_status === 'DENIED' && 'STATUS: ENTRY PROHIBITED (VIOLATION)'}
+                              {decision.compliance_status === 'OVERRIDDEN' && 'STATUS: MANUAL OVERRIDE APPROVED'}
+                            </span>
+                            <span className="font-mono text-sm px-2.5 py-0.5 rounded-lg bg-white text-slate-900 font-bold border border-slate-200 shadow-xs">
+                              {decision.vehicle_number}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Result Body */}
+                        <div className="p-5 space-y-4">
+                          {decision.compliance_status === 'DENIED' && decision.rejection_reasons.length > 0 && (
+                            <div className="bg-rose-50 border border-rose-200 rounded-xl p-4">
+                              <div className="text-rose-800 text-xs font-bold uppercase mb-2 flex items-center space-x-1.5">
+                                <Icons.ShieldAlert />
+                                <span>Specific Violation Ground:</span>
+                              </div>
+                              <ul className="space-y-1.5 text-xs text-rose-700">
+                                {decision.rejection_reasons.map((r, i) => (
+                                  <li key={i} className="flex items-start space-x-2">
+                                    <span className="text-rose-600 font-bold">✕</span>
+                                    <span>{r}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {/* Statutory Records Grid */}
+                          <div className="grid grid-cols-2 gap-3 text-xs">
+                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                              <span className="text-[10px] text-slate-500 uppercase block mb-1">Owner Name</span>
+                              <span className="font-semibold text-xs text-slate-800 block truncate">{decision.owner_name}</span>
+                            </div>
+
+                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                              <span className="text-[10px] text-slate-500 uppercase block mb-1">RC Status</span>
+                              <span className={`px-2 py-0.5 rounded text-xs font-mono font-bold inline-block ${
+                                decision.rc_status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'
+                              }`}>
+                                {decision.rc_status}
+                              </span>
+                            </div>
+
+                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                              <span className="text-[10px] text-slate-500 uppercase block mb-1">PUC Certificate Expiry</span>
+                              <span className="font-mono text-xs text-slate-800 block">{decision.puc_valid_until || 'N/A'}</span>
+                              <span className={`text-[10px] font-semibold mt-1 inline-block ${decision.puc_status === 'VALID' ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                {decision.puc_status === 'VALID' ? 'VALID (Compliant)' : 'EXPIRED (Violation)'}
+                              </span>
+                            </div>
+
+                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                              <span className="text-[10px] text-slate-500 uppercase block mb-1">Insurance Validity</span>
+                              <span className="text-xs text-emerald-700 font-semibold block">ACTIVE / COMPLIANT</span>
+                              <span className="text-[10px] text-slate-400">National Insurance Co.</span>
+                            </div>
+                          </div>
+
+                          {/* Action Footers */}
+                          <div className="pt-2 flex gap-3">
+                            {decision.compliance_status === 'ALLOWED' && (
+                              <button
+                                type="button"
+                                onClick={() => alert(`Authorizing Barrier Open for ${decision.vehicle_number} at ${activeGate}`)}
+                                className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center space-x-2 shadow-sm transition active:scale-95"
+                              >
+                                <span>Authorize Gate Barrier Open</span>
+                              </button>
+                            )}
+
+                            {decision.compliance_status === 'DENIED' && (
+                              <button
+                                type="button"
+                                onClick={() => setIsOverrideOpen(true)}
+                                className="w-full py-3 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center space-x-2 shadow-sm transition active:scale-95"
+                              >
+                                <Icons.KeyRound />
+                                <span>Request Supervisor PIN Override</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-10 text-center flex flex-col items-center justify-center min-h-[300px] shadow-sm">
+                        <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-3">
+                          <Icons.Keyboard />
+                        </div>
+                        <h3 className="text-sm font-bold text-slate-800 uppercase">Enter Number Plate to Verify</h3>
+                        <p className="text-xs text-slate-500 mt-1 max-w-sm">
+                          Type registration plate using keyboard or touch-keypad and tap "Verify Statutory Records with Surepass".
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ========================================================= */}
+              {/* PAGE 3: GATE MOVEMENT AUDIT LOGS                          */}
+              {/* ========================================================= */}
+              {activePage === 'LOGS' && (
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-base font-bold text-slate-900 flex items-center space-x-2">
+                        <Icons.History />
+                        <span>Comprehensive Gate Movement Audit Trail</span>
+                      </h2>
+                      <p className="text-xs text-slate-500">
+                        Historical Supabase audit logs ({movements.length} total entries)
+                      </p>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={handleExportAuditCSV}
+                        className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-semibold text-xs flex items-center space-x-1.5 shadow-xs transition"
+                      >
+                        <Icons.FileSpreadsheet />
+                        <span>Export CSV Log</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto rounded-xl border border-slate-200">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 text-[11px] uppercase font-semibold">
+                          <th className="p-3">Timestamp</th>
+                          <th className="p-3">Gate Terminal</th>
+                          <th className="p-3">Vehicle Plate</th>
+                          <th className="p-3">Carrier Vendor</th>
+                          <th className="p-3">Direction</th>
+                          <th className="p-3">Compliance Verdict</th>
+                          <th className="p-3">Inspector / Guard</th>
+                          <th className="p-3">Decision Notes</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-slate-800">
+                        {movements.map((m) => (
+                          <tr key={m.id || m.movement_id} className="hover:bg-slate-50/80 transition">
+                            <td className="p-3 font-mono text-slate-500 whitespace-nowrap">
+                              {new Date(m.created_at || m.timestamp).toLocaleString('en-IN', {
+                                dateStyle: 'short',
+                                timeStyle: 'short'
+                              })}
+                            </td>
+                            <td className="p-3 text-slate-700 whitespace-nowrap font-medium">
+                              {m.gate_id}
+                            </td>
+                            <td className="p-3 font-mono font-bold text-slate-900 whitespace-nowrap">
+                              {m.vehicle_number}
+                            </td>
+                            <td className="p-3 text-slate-700 max-w-[180px] truncate">
+                              {m.vendor_name || m.vendor_code}
+                            </td>
+                            <td className="p-3 whitespace-nowrap">
+                              <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-mono text-[10px]">
+                                {m.movement_type || 'ENTRY'}
+                              </span>
+                            </td>
+                            <td className="p-3 whitespace-nowrap">
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                  m.compliance_status === 'ALLOWED'
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : m.compliance_status === 'OVERRIDDEN'
+                                    ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                    : 'bg-rose-50 text-rose-700 border border-rose-200'
+                                }`}
+                              >
+                                {m.compliance_status}
+                              </span>
+                            </td>
+                            <td className="p-3 font-mono text-slate-500 whitespace-nowrap text-[11px]">
+                              {m.guard_id}
+                            </td>
+                            <td className="p-3 text-slate-600 max-w-[240px] truncate text-[11px]">
+                              {m.compliance_status === 'OVERRIDDEN'
+                                ? `Override: ${m.override_reason || 'Supervisor Cleared'}`
+                                : m.rejection_reasons && m.rejection_reasons.length > 0
+                                ? m.rejection_reasons[0]
+                                : 'All Rule Checks Passed'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* ========================================================= */}
+              {/* PAGE 4: WATCHLIST & BLACKLIST REGISTRY                    */}
+              {/* ========================================================= */}
+              {activePage === 'WATCHLIST' && (
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-base font-bold text-slate-900 flex items-center space-x-2">
+                        <Icons.ShieldAlert />
+                        <span>Plant Security Watchlist & Blacklist Registry</span>
+                      </h2>
+                      <p className="text-xs text-slate-500">
+                        Vehicles flagged here trigger immediate non-negotiable barrier refusal at all terminal gates.
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => setIsAddBlacklistOpen(true)}
+                      className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs uppercase tracking-wider flex items-center space-x-1.5 shadow-sm transition active:scale-95"
+                    >
+                      <Icons.Plus />
+                      <span>Add Flagged Vehicle</span>
+                    </button>
+                  </div>
+
+                  {/* Search Bar */}
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={blacklistSearch}
+                      onChange={(e) => setBlacklistSearch(e.target.value)}
+                      placeholder="Search blacklist by vehicle plate number, vendor carrier, or violation reason..."
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+                    />
+                    <div className="absolute left-3.5 top-3 text-slate-400 pointer-events-none">
+                      <Icons.Search />
+                    </div>
+                  </div>
+
+                  {/* Blacklist Table */}
+                  <div className="overflow-x-auto rounded-xl border border-slate-200">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 text-[11px] uppercase font-semibold">
+                          <th className="p-3">Vehicle Number</th>
+                          <th className="p-3">Vendor / Transporter</th>
+                          <th className="p-3">Blacklisted Reason</th>
+                          <th className="p-3">Flagged By</th>
+                          <th className="p-3">Date Flagged</th>
+                          <th className="p-3 text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-slate-800">
+                        {filteredBlacklist.map((item) => (
+                          <tr key={item.id} className="hover:bg-slate-50/80 transition">
+                            <td className="p-3 font-mono font-bold text-rose-700 whitespace-nowrap">
+                              {item.vehicle_number}
+                            </td>
+                            <td className="p-3 text-slate-800 font-medium whitespace-nowrap">
+                              {item.vendor_name}
+                            </td>
+                            <td className="p-3 text-slate-600 max-w-xs">
+                              {item.blacklisted_reason}
+                            </td>
+                            <td className="p-3 font-mono text-slate-500 whitespace-nowrap">
+                              {item.flagged_by}
+                            </td>
+                            <td className="p-3 font-mono text-slate-500 whitespace-nowrap">
+                              {item.flagged_date}
+                            </td>
+                            <td className="p-3 text-right">
+                              <button
+                                onClick={() => handleRemoveBlacklist(item.id)}
+                                className="px-2.5 py-1 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 border border-rose-200 transition"
+                                title="Remove vehicle from blacklist"
+                              >
+                                <Icons.Trash2 />
+                                <span>Unflag</span>
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                        {filteredBlacklist.length === 0 && (
+                          <tr>
+                            <td colSpan={6} className="p-6 text-center text-slate-500 text-xs">
+                              No blacklisted vehicles match your search filter.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* ========================================================= */}
+              {/* PAGE 5: PLANT SAFETY SOP & HELP GUIDE                     */}
+              {/* ========================================================= */}
+              {activePage === 'SAFETY_SOP' && (
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-6">
+                  <div>
+                    <h2 className="text-base font-bold text-slate-900 flex items-center space-x-2">
+                      <Icons.BookOpen />
+                      <span>Vizag Steel Plant Safety Standard Operating Procedures (SOP)</span>
+                    </h2>
+                    <p className="text-xs text-slate-500">
+                      Standard operating guidelines and mandatory compliance protocols for gate security personnel
+                    </p>
+                  </div>
+
+                  {/* SOP Tabs */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 p-1 bg-slate-100 rounded-2xl border border-slate-200">
+                    <button
+                      onClick={() => setSopTab('EXPIRED_CERT')}
+                      className={`py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2 ${
+                        sopTab === 'EXPIRED_CERT'
+                          ? 'bg-blue-600 text-white shadow-sm font-extrabold'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <Icons.FileWarning />
+                      <span>1. Expired Certificate Protocol</span>
+                    </button>
+                    <button
+                      onClick={() => setSopTab('EMERGENCY_CONTACTS')}
+                      className={`py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2 ${
+                        sopTab === 'EMERGENCY_CONTACTS'
+                          ? 'bg-blue-600 text-white shadow-sm font-extrabold'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <Icons.PhoneCall />
+                      <span>2. Emergency Call Directory</span>
+                    </button>
+                    <button
+                      onClick={() => setSopTab('HAZMAT_RULES')}
+                      className={`py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2 ${
+                        sopTab === 'HAZMAT_RULES'
+                          ? 'bg-blue-600 text-white shadow-sm font-extrabold'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <Icons.Scale />
+                      <span>3. Hazmat & Axle Rules</span>
+                    </button>
+                  </div>
+
+                  {/* Tab 1: Expired Certificate Protocol */}
+                  {sopTab === 'EXPIRED_CERT' && (
+                    <div className="space-y-4">
+                      <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+                        <strong>Mandatory Plant Statutory Directive:</strong> No transport carrier with an expired
+                        Pollution Under Control (PUC) certificate or suspended/inactive Registration Certificate (RC)
+                        is permitted past the plant barrier under any non-emergency circumstance.
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                          <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 font-bold flex items-center justify-center text-sm font-mono">
+                            1
+                          </div>
+                          <h4 className="font-bold text-xs text-slate-900 uppercase">Step 1: Direct to Holding Bay</h4>
+                          <p className="text-[11px] text-slate-600 leading-relaxed">
+                            Instruct the driver to exit the primary traffic lane immediately and park in Holding Bay #3.
+                            Do not allow blocking of weighing scale sensors.
+                          </p>
+                        </div>
+
+                        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                          <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 border border-rose-200 font-bold flex items-center justify-center text-sm font-mono">
+                            2
+                          </div>
+                          <h4 className="font-bold text-xs text-slate-900 uppercase">Step 2: Issue Rejection Notice</h4>
+                          <p className="text-[11px] text-slate-600 leading-relaxed">
+                            Provide Driver Rejection Slip (Form SF-104) citing the specific Surepass API statutory ground
+                            (e.g., PUC expired on date).
+                          </p>
+                        </div>
+
+                        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                          <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 font-bold flex items-center justify-center text-sm font-mono">
+                            3
+                          </div>
+                          <h4 className="font-bold text-xs text-slate-900 uppercase">Step 3: Escalate to Supervisor</h4>
+                          <p className="text-[11px] text-slate-600 leading-relaxed">
+                            If the transporter claims emergency blast furnace supply, require the Shift Incharge to enter
+                            their Supervisor PIN and written justification.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tab 2: Emergency Contacts */}
+                  {sopTab === 'EMERGENCY_CONTACTS' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
+                        <div>
+                          <span className="text-[10px] text-rose-600 uppercase font-bold">Plant Safety Officer</span>
+                          <h4 className="font-bold text-sm text-slate-900 mt-1">Er. K. Ramachandra</h4>
+                          <span className="text-xs text-slate-500 font-mono mt-0.5 block">Ext: 9011 / +91 891 2519011</span>
+                        </div>
+                        <button
+                          onClick={() => handleTriggerEmergencyCall('Plant Safety Officer', '9011')}
+                          className="mt-4 w-full py-2 px-3 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs uppercase flex items-center justify-center space-x-1.5 transition active:scale-95"
+                        >
+                          <Icons.PhoneCall />
+                          <span>Radio Safety</span>
+                        </button>
+                      </div>
+
+                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
+                        <div>
+                          <span className="text-[10px] text-blue-600 uppercase font-bold">Security Control Room</span>
+                          <h4 className="font-bold text-sm text-slate-900 mt-1">Central CISF Desk</h4>
+                          <span className="text-xs text-slate-500 font-mono mt-0.5 block">Ext: 8800 / +91 891 2518800</span>
+                        </div>
+                        <button
+                          onClick={() => handleTriggerEmergencyCall('Security Control Room (CISF)', '8800')}
+                          className="mt-4 w-full py-2 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase flex items-center justify-center space-x-1.5 transition active:scale-95"
+                        >
+                          <Icons.PhoneCall />
+                          <span>Call Security</span>
+                        </button>
+                      </div>
+
+                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
+                        <div>
+                          <span className="text-[10px] text-amber-700 uppercase font-bold">Transport Supervisor</span>
+                          <h4 className="font-bold text-sm text-slate-900 mt-1">Shift Superintendent</h4>
+                          <span className="text-xs text-slate-500 font-mono mt-0.5 block">Ext: 7420 / +91 891 2517420</span>
+                        </div>
+                        <button
+                          onClick={() => handleTriggerEmergencyCall('Transport Supervisor', '7420')}
+                          className="mt-4 w-full py-2 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs uppercase flex items-center justify-center space-x-1.5 transition active:scale-95"
+                        >
+                          <Icons.PhoneCall />
+                          <span>Call Supervisor</span>
+                        </button>
+                      </div>
+
+                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
+                        <div>
+                          <span className="text-[10px] text-emerald-600 uppercase font-bold">Medical / First Aid</span>
+                          <h4 className="font-bold text-sm text-slate-900 mt-1">Plant Trauma Centre</h4>
+                          <span className="text-xs text-slate-500 font-mono mt-0.5 block">Ext: 108 / +91 891 2510108</span>
+                        </div>
+                        <button
+                          onClick={() => handleTriggerEmergencyCall('Plant Medical Unit', '108')}
+                          className="mt-4 w-full py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase flex items-center justify-center space-x-1.5 transition active:scale-95"
+                        >
+                          <Icons.PhoneCall />
+                          <span>Call Medical</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tab 3: Hazmat & Axle Rules */}
+                  {sopTab === 'HAZMAT_RULES' && (
+                    <div className="space-y-4 text-xs">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                          <h4 className="font-bold text-xs text-blue-700 uppercase flex items-center space-x-1.5">
+                            <Icons.Scale />
+                            <span>Gross Vehicle Weight (GVW) Tolerances</span>
+                          </h4>
+                          <ul className="space-y-2 text-slate-700">
+                            <li className="flex justify-between border-b border-slate-200 pb-1">
+                              <span>2-Axle Rigid Truck</span>
+                              <strong className="font-mono text-slate-900">Max 19.0 MT</strong>
+                            </li>
+                            <li className="flex justify-between border-b border-slate-200 pb-1">
+                              <span>3-Axle Rigid Truck</span>
+                              <strong className="font-mono text-slate-900">Max 28.0 MT</strong>
+                            </li>
+                            <li className="flex justify-between border-b border-slate-200 pb-1">
+                              <span>4-Axle Rigid Truck</span>
+                              <strong className="font-mono text-slate-900">Max 35.0 MT</strong>
+                            </li>
+                            <li className="flex justify-between border-b border-slate-200 pb-1">
+                              <span>Multi-Axle Tractor-Trailer (Steel Coils)</span>
+                              <strong className="font-mono text-slate-900">Max 49.0 - 55.0 MT</strong>
+                            </li>
+                          </ul>
+                          <p className="text-[10px] text-amber-800 mt-1">
+                            * Vehicles exceeding permitted gross weight by more than 5% must be routed to Inbound Weighbridge #2 for offloading.
+                          </p>
+                        </div>
+
+                        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                          <h4 className="font-bold text-xs text-amber-700 uppercase flex items-center space-x-1.5">
+                            <Icons.HardHat />
+                            <span>Mandatory Driver PPE Compliance</span>
+                          </h4>
+                          <p className="text-slate-600 text-[11px]">
+                            Driver and cleaner must dismount equipped with the following before crossing the safety yellow line:
+                          </p>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="p-2.5 rounded-xl bg-white border border-slate-200 flex items-center space-x-2">
+                              <span>🪖</span>
+                              <span className="font-semibold text-slate-800">IS 2925 Hard Hat</span>
+                            </div>
+                            <div className="p-2.5 rounded-xl bg-white border border-slate-200 flex items-center space-x-2">
+                              <span>🦺</span>
+                              <span className="font-semibold text-slate-800">High-Vis Vest</span>
+                            </div>
+                            <div className="p-2.5 rounded-xl bg-white border border-slate-200 flex items-center space-x-2">
+                              <span>🥾</span>
+                              <span className="font-semibold text-slate-800">Steel Toe Shoes</span>
+                            </div>
+                            <div className="p-2.5 rounded-xl bg-white border border-slate-200 flex items-center space-x-2">
+                              <span>👓</span>
+                              <span className="font-semibold text-slate-800">Safety Goggles</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </main>
+
+            {/* Footer */}
+            <footer className="bg-white border-t border-slate-200 py-3.5 px-6 text-center text-xs text-slate-500">
+              SmeltIQ Automated Gate Entry Compliance System • Vizag Steel Operations • Surepass RC & Supabase Audit
+            </footer>
+          </div>
+
+          {/* ========================================================= */}
+          {/* MODAL: SUPERVISOR PIN OVERRIDE                           */}
+          {/* ========================================================= */}
+          {isOverrideOpen && decision && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+              <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden">
+                <div className="bg-amber-50 border-b border-amber-200 p-4 flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <div className="p-2 rounded-xl bg-amber-100 text-amber-800">
+                      <Icons.KeyRound />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900">Guard Override Request</h3>
+                      <p className="text-[11px] text-amber-800">Supervisor PIN Authorization</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setIsOverrideOpen(false)} className="text-slate-400 hover:text-slate-600 text-sm">✕</button>
+                </div>
+
+                <form onSubmit={handleOverrideSubmit} className="p-5 space-y-3.5 text-xs">
+                  <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex justify-between">
+                    <span>Vehicle: <strong className="text-blue-700 font-mono">{decision.vehicle_number}</strong></span>
+                    <span>Status: <strong className="text-rose-600">DENIED</strong></span>
+                  </div>
+
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">Supervisor Master PIN</label>
+                    <input
+                      type="text"
+                      value={overridePin}
+                      onChange={(e) => setOverridePin(e.target.value)}
+                      placeholder="SUPER88"
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-mono font-bold text-amber-800 focus:bg-white"
+                      required
+                    />
+                    <span className="text-[10px] text-slate-500 mt-0.5 block">Default demo pin: <strong>SUPER88</strong></span>
+                  </div>
+
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">Mandatory Justification Rationale</label>
+                    <textarea
+                      rows={3}
+                      value={overrideReason}
+                      onChange={(e) => setOverrideReason(e.target.value)}
+                      placeholder="e.g., Authorized emergency slag disposal vehicle cleared by Shift Incharge..."
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-slate-800 focus:bg-white"
+                      required
+                    />
+                  </div>
+
+                  {overrideError && (
+                    <div className="text-rose-700 bg-rose-50 p-2 rounded-xl border border-rose-200">
+                      {overrideError}
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsOverrideOpen(false)}
+                      className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold uppercase tracking-wider shadow-sm"
+                    >
+                      Confirm Override
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================= */}
+          {/* MODAL: ADD VEHICLE TO BLACKLIST                          */}
+          {/* ========================================================= */}
+          {isAddBlacklistOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+              <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden">
+                <div className="bg-rose-50 border-b border-rose-200 p-4 flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <div className="p-2 rounded-xl bg-rose-100 text-rose-700">
+                      <Icons.ShieldAlert />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900">Add Vehicle to Blacklist</h3>
+                      <p className="text-[11px] text-rose-700">Bars vehicle from all plant gates</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setIsAddBlacklistOpen(false)} className="text-slate-400 hover:text-slate-600 text-sm">✕</button>
+                </div>
+
+                <form onSubmit={handleAddBlacklist} className="p-5 space-y-3.5 text-xs">
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">Vehicle Registration Number</label>
+                    <input
+                      type="text"
+                      value={newBlkPlate}
+                      onChange={(e) => setNewBlkPlate(e.target.value.toUpperCase())}
+                      placeholder="e.g. DL01AB1234"
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-mono font-bold text-slate-900 uppercase focus:bg-white"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">Transporter / Logistics Carrier</label>
+                    <input
+                      type="text"
+                      value={newBlkVendor}
+                      onChange={(e) => setNewBlkVendor(e.target.value)}
+                      placeholder="e.g. Apex Logistics Corp"
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-slate-800 focus:bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">Blacklisting Reason & Incident Report</label>
+                    <textarea
+                      rows={3}
+                      value={newBlkReason}
+                      onChange={(e) => setNewBlkReason(e.target.value)}
+                      placeholder="e.g., Repeated axle overload violation; refusal to stop at weighbridge..."
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-slate-800 focus:bg-white"
+                      required
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsAddBlacklistOpen(false)}
+                      className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold uppercase tracking-wider shadow-sm"
+                    >
+                      Add to Blacklist
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================= */}
+          {/* MODAL: SUPERVISOR OPERATIONS DESK                        */}
+          {/* ========================================================= */}
+          {isSupervisorDeskOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+              <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                <div className="bg-amber-50 p-4 border-b border-amber-200 flex items-center justify-between">
+                  <div className="flex items-center space-x-2.5">
+                    <div className="p-2 rounded-xl bg-amber-100 text-amber-800 font-bold">⚙️</div>
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900 flex items-center space-x-2">
+                        <span>Supervisor Operations Control Desk</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-mono font-bold">
+                          {currentUser.role}
+                        </span>
+                      </h3>
+                      <p className="text-[11px] text-slate-600">
+                        Officer: <strong>{currentUser.full_name}</strong> ({currentUser.employee_id})
+                      </p>
+                    </div>
+                  </div>
+                  <button onClick={() => setIsSupervisorDeskOpen(false)} className="text-slate-400 hover:text-slate-600 text-sm">✕</button>
+                </div>
+
+                <div className="p-5 overflow-y-auto space-y-5 text-xs">
+                  {/* Top Action Cards */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                      <div>
+                        <strong className="text-slate-900 block">Statutory Audit Trail Export</strong>
+                        <span className="text-[10px] text-slate-500">Download {movements.length} gate logs as CSV</span>
+                      </div>
+                      <button
+                        onClick={handleExportAuditCSV}
+                        className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold transition active:scale-95 shadow-xs"
+                      >
+                        Export CSV
+                      </button>
+                    </div>
+                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                      <div>
+                        <strong className="text-slate-900 block">Supervisor Verbal PIN</strong>
+                        <span className="text-[10px] text-slate-500">Master override code: <code className="text-amber-800 font-bold font-mono">SUPER88</code></span>
+                      </div>
+                      <span className="px-2 py-1 rounded bg-emerald-50 border border-emerald-200 text-[10px] text-emerald-700 font-bold">ACTIVE</span>
+                    </div>
+                  </div>
+
+                  {/* Vendor Governance */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <strong className="text-xs uppercase tracking-wider text-slate-800">
+                        Logistics Transporter Governance (Rule 3 Active Checking)
+                      </strong>
+                      <span className="text-[11px] text-slate-500">
+                        {vendors.filter(v => v.is_active).length} of {vendors.length} Authorized
+                      </span>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 overflow-hidden divide-y divide-slate-100 bg-white">
+                      {vendors.map(v => (
+                        <div key={v.id} className="p-3 flex items-center justify-between hover:bg-slate-50">
+                          <div>
+                            <div className="flex items-center space-x-2">
+                              <span className={`w-2 h-2 rounded-full ${v.is_active ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
+                              <strong className="text-slate-900">{v.vendor_name}</strong>
+                              <span className="text-[10px] font-mono px-1 bg-slate-100 rounded text-slate-600 border border-slate-200">{v.vendor_code}</span>
+                            </div>
+                            <span className="text-[10px] text-slate-500 block mt-0.5">
+                              Status: {v.is_active ? 'Authorized Plant Contractor' : 'Suspended / Blacklisted from Plant'}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => handleToggleVendor(v.vendor_code)}
+                            className={`px-3 py-1.5 rounded-lg font-bold text-xs transition ${
+                              v.is_active
+                                ? 'bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700'
+                                : 'bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700'
+                            }`}
+                          >
+                            {v.is_active ? 'Suspend Vendor' : 'Re-Authorize Vendor'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-slate-50 border-t border-slate-200 flex justify-end">
+                  <button
+                    onClick={() => setIsSupervisorDeskOpen(false)}
+                    className="px-4 py-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold text-xs"
+                  >
+                    Close Desk
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<SmeltIQApp />);
+  </script>
+</body>
+</html>

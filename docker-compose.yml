@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  # 1. Local PostgreSQL (Supabase Compatible) Database
+  database:
+    image: postgres:15-alpine
+    container_name: smeltiq-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: smeltiq_gate_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d smeltiq_gate_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. FastAPI Backend Engine
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: smeltiq-backend
+    restart: unless-stopped
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DEBUG=true
+      # Surepass Sandbox Configuration
+      - SUREPASS_ENV=${SUREPASS_ENV:-sandbox}
+      - SUREPASS_BASE_URL=${SUREPASS_BASE_URL:-https://sandbox.surepass.io/api/v1}
+      - SUREPASS_SANDBOX_TOKEN=${SUREPASS_SANDBOX_TOKEN:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc5MTgwOTU5NSwianRpIjoiYzg1ZjBhMjItZGFmYS00NWQ0LTkyZmMtYjhmZGUxMzlhNTQ4IiwidHlwZSI6ImFjY2VzcyIsImlkZW50aXR5IjoiZGV2LnNtZWx0aXFAc3VyZXBhc3MuaW8iLCJuYmYiOjE3OTE4MDk1OTUsImV4cCI6MTc5NDQwMTU5NSwiZW1haWwiOiJzbWVsdGlxQHN1cmVwYXNzLmlvIiwidGVuYW50X2lkIjoibWFpbiIsInVzZXJfY2xhaW1zIjp7InNjb3BlcyI6WyJ1c2VyIl19fQ.UGUvNbwV_Wqi0V3HBUXisRsE5WZss7XXiDBWaUvUCag}
+      - SUREPASS_MOCK=${SUREPASS_MOCK:-false}
+      # Supabase Live Cloud Credentials
+      - SUPABASE_URL=${SUPABASE_URL:-https://zklxevkhcgxwnpwwijal.supabase.co}
+      - SUPABASE_KEY=${SUPABASE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InprbHhldmtoY2d4d25wd3dpamFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NzIwMDYsImV4cCI6MjEwNzQ0ODAwNn0.Q7gy0oSp75hkNW9jiPBd1UF3iwyGR4sFysa56EAXlmE}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InprbHhldmtoY2d4d25wd3dpamFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NzIwMDYsImV4cCI6MjEwNzQ0ODAwNn0.Q7gy0oSp75hkNW9jiPBd1UF3iwyGR4sFysa56EAXlmE}
+      # Security & Supervisor Override
+      - SUPERVISOR_OVERRIDE_PIN=SUPER88
+    ports:
+      - "8000:8000"
+    depends_on:
+      database:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+
+  # 3. React Frontend Workstation
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: smeltiq-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  db_data:
+    driver: local
