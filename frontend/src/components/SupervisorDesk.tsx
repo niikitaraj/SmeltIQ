@@ -21,8 +21,7 @@ interface SupervisorDeskProps {
   onClose: () => void;
   currentUser: UserProfile;
   vendors: Vendor[];
-  onVendorsUpdate?: (updatedVendors: Vendor[]) => void;
-  onToggleVendor?: (vendorCode: string) => void;
+  onVendorsUpdate: (updatedVendors: Vendor[]) => void;
   movements: MovementLogItem[];
 }
 
@@ -32,7 +31,6 @@ export const SupervisorDesk: React.FC<SupervisorDeskProps> = ({
   currentUser,
   vendors,
   onVendorsUpdate,
-  onToggleVendor,
   movements
 }) => {
   const [updatingCode, setUpdatingCode] = useState<string | null>(null);
@@ -45,14 +43,9 @@ export const SupervisorDesk: React.FC<SupervisorDeskProps> = ({
     setSuccessMsg(null);
     try {
       const updated = await api.toggleVendorStatus(vendor.vendor_code, !vendor.is_active, 'SUPER88');
-      if (onVendorsUpdate) {
-        onVendorsUpdate(
-          vendors.map((v) => (v.vendor_code === updated.vendor_code ? updated : v))
-        );
-      }
-      if (onToggleVendor) {
-        onToggleVendor(vendor.vendor_code);
-      }
+      onVendorsUpdate(
+        vendors.map((v) => (v.vendor_code === updated.vendor_code ? updated : v))
+      );
       setSuccessMsg(
         `Vendor ${vendor.vendor_name} is now ${
           !vendor.is_active ? 'AUTHORIZED (ACTIVE)' : 'SUSPENDED / BLOCKED'
@@ -61,16 +54,11 @@ export const SupervisorDesk: React.FC<SupervisorDeskProps> = ({
     } catch {
       // Offline / standalone fallback
       const toggled = !vendor.is_active;
-      if (onVendorsUpdate) {
-        onVendorsUpdate(
-          vendors.map((v) =>
-            v.vendor_code === vendor.vendor_code ? { ...v, is_active: toggled } : v
-          )
-        );
-      }
-      if (onToggleVendor) {
-        onToggleVendor(vendor.vendor_code);
-      }
+      onVendorsUpdate(
+        vendors.map((v) =>
+          v.vendor_code === vendor.vendor_code ? { ...v, is_active: toggled } : v
+        )
+      );
       setSuccessMsg(
         `Local mode: ${vendor.vendor_name} changed to ${
           toggled ? 'ACTIVE' : 'SUSPENDED'

@@ -16,8 +16,7 @@ interface OverrideModalProps {
   onClose: () => void;
   decision: ComplianceDecision;
   guardId: string;
-  onOverrideSuccess?: (updatedDecision: ComplianceDecision) => void;
-  onSuccess?: (updatedDecision: ComplianceDecision) => void;
+  onOverrideSuccess: (updatedDecision: ComplianceDecision) => void;
 }
 
 export const OverrideModal: React.FC<OverrideModalProps> = ({
@@ -25,8 +24,7 @@ export const OverrideModal: React.FC<OverrideModalProps> = ({
   onClose,
   decision,
   guardId,
-  onOverrideSuccess,
-  onSuccess
+  onOverrideSuccess
 }) => {
   const [supervisorCode, setSupervisorCode] = useState<string>('SUPER88');
   const [overrideReason, setOverrideReason] = useState<string>('');
@@ -67,11 +65,7 @@ export const OverrideModal: React.FC<OverrideModalProps> = ({
         ]
       };
 
-      if (onOverrideSuccess) {
-        onOverrideSuccess(updated);
-      } else if (onSuccess) {
-        onSuccess(updated);
-      }
+      onOverrideSuccess(updated);
       onClose();
     } catch (err: any) {
       setErrorMsg(err.message || 'Override authorization rejected.');
