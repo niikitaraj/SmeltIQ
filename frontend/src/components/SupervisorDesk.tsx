@@ -40,7 +40,7 @@ export const SupervisorDesk: React.FC<SupervisorDeskProps> = ({
       }
       if (onVendorsUpdate) {
         onVendorsUpdate(
-          vendors.map((v) => (v.vendor_code === updated.vendor_code ? updated : v))
+          vendors.map((v: Vendor) => (v.vendor_code === updated.vendor_code ? updated : v))
         );
       }
       setSuccessMsg(
@@ -56,7 +56,7 @@ export const SupervisorDesk: React.FC<SupervisorDeskProps> = ({
       }
       if (onVendorsUpdate) {
         onVendorsUpdate(
-          vendors.map((v) =>
+          vendors.map((v: Vendor) =>
             v.vendor_code === vendor.vendor_code ? { ...v, is_active: toggled } : v
           )
         );
@@ -88,7 +88,7 @@ export const SupervisorDesk: React.FC<SupervisorDeskProps> = ({
       'Override Reason',
       'Timestamp'
     ];
-    const rows = movements.map((m) => [
+    const rows = movements.map((m: MovementLogItem) => [
       m.id,
       m.gate_id,
       m.movement_type,
@@ -106,7 +106,7 @@ export const SupervisorDesk: React.FC<SupervisorDeskProps> = ({
 
     const csvContent =
       'data:text/csv;charset=utf-8,' +
-      [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+      [headers.join(','), ...rows.map((e: any) => e.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
@@ -204,12 +204,12 @@ export const SupervisorDesk: React.FC<SupervisorDeskProps> = ({
                 </h4>
               </div>
               <span className="text-[11px] text-slate-400">
-                {vendors.filter((v) => v.is_active).length} of {vendors.length} active
+                {vendors.filter((v: Vendor) => v.is_active).length} of {vendors.length} active
               </span>
             </div>
 
             <div className="rounded-2xl border border-slate-800 overflow-hidden divide-y divide-slate-800/80 bg-slate-950">
-              {vendors.map((vendor) => (
+              {vendors.map((vendor: Vendor) => (
                 <div
                   key={vendor.vendor_code}
                   className="p-3.5 flex items-center justify-between hover:bg-slate-900/50 transition"
