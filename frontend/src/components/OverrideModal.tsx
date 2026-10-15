@@ -9,21 +9,14 @@ import {
   ShieldAlert
 } from 'lucide-react';
 import { api } from '../services/api';
-import { ComplianceDecision } from '../types';
-
-interface OverrideModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  decision: ComplianceDecision;
-  guardId: string;
-  onOverrideSuccess: (updatedDecision: ComplianceDecision) => void;
-}
+import { ComplianceDecision, OverrideModalProps } from '../types';
 
 export const OverrideModal: React.FC<OverrideModalProps> = ({
   isOpen,
   onClose,
   decision,
   guardId,
+  onSuccess,
   onOverrideSuccess
 }) => {
   const [supervisorCode, setSupervisorCode] = useState<string>('SUPER88');
@@ -65,7 +58,12 @@ export const OverrideModal: React.FC<OverrideModalProps> = ({
         ]
       };
 
-      onOverrideSuccess(updated);
+      if (onSuccess) {
+        onSuccess(updated);
+      }
+      if (onOverrideSuccess) {
+        onOverrideSuccess(updated);
+      }
       onClose();
     } catch (err: any) {
       setErrorMsg(err.message || 'Override authorization rejected.');
