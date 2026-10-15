@@ -985,35 +985,6 @@
         };
       };
 
-      // Dynamic Backend API resolver for standalone HTML execution
-      const getBackendApiBaseUrl = () => {
-        if (typeof window !== 'undefined') {
-          // 1. URL search param override (?api_url=https://...)
-          try {
-            const params = new URLSearchParams(window.location.search);
-            const queryApi = params.get('api_url') || params.get('backend_url');
-            if (queryApi) return queryApi.replace(/\/+$/, '');
-          } catch (e) {}
-
-          // 2. Global window variables injected by hosting or config scripts
-          if (window.__SMELTIQ_API_URL__) return window.__SMELTIQ_API_URL__.replace(/\/+$/, '');
-          if (window.VITE_API_BASE_URL) return window.VITE_API_BASE_URL.replace(/\/+$/, '');
-          if (window.REACT_APP_API_BASE_URL) return window.REACT_APP_API_BASE_URL.replace(/\/+$/, '');
-
-          // 3. Persistent LocalStorage setting
-          const stored = localStorage.getItem('smeltiq_api_url') || localStorage.getItem('VITE_API_BASE_URL');
-          if (stored) return stored.replace(/\/+$/, '');
-
-          // 4. Fallback for localhost development
-          const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-          if (isLocalhost) {
-            return 'http://localhost:8000/api/v1';
-          }
-        }
-        // 5. Default relative path for reverse proxy or same-domain production
-        return '/api/v1';
-      };
-
       const executeVerification = async (plate, vendorCode) => {
         const cleanPlate = (plate || '').toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
         if (!cleanPlate) {
@@ -1023,13 +994,8 @@
 
         setIsScanning(true);
 
-        const baseUrl = getBackendApiBaseUrl();
-        const verifyEndpoint = baseUrl.endsWith('/api/v1') 
-          ? `${baseUrl}/gate/verify` 
-          : `${baseUrl}/api/v1/gate/verify`;
-
         try {
-          const res = await fetch(verifyEndpoint, {
+          const res = await fetch('http://localhost:8000/api/v1/gate/verify', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1068,8 +1034,8 @@
         } catch (apiErr) {
           console.error('Backend API connection error:', apiErr);
           setIsScanning(false);
-          setSopAlert(`❌ Backend Connection Error: Failed to reach ${verifyEndpoint}. Ensure the FastAPI backend is running and CORS is configured.`);
-          alert(`Backend Connection Error: Unable to connect to ${verifyEndpoint}.\nPlease verify backend is running and allows requests from ${window.location.origin}.`);
+          setSopAlert(`❌ Backend Connection Error: Failed to reach http://localhost:8000. Ensure the FastAPI backend is running.`);
+          alert(`Backend Connection Error: Unable to connect to http://localhost:8000. Is the backend server running?`);
           return;
         }
       };

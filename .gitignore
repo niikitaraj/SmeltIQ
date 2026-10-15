@@ -71,7 +71,6 @@ temp_ocr_*
 ocr_scans/
 
 # Testing & Coverage
-scratch/
 .coverage
 .coverage.*
 nosetests.xml
