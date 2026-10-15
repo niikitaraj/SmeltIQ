@@ -10,7 +10,8 @@ import {
   AuthSession
 } from '../types';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+const rawBase = ((import.meta.env.VITE_API_BASE_URL as string) || '/api/v1').trim().replace(/\/+$/, '');
+const API_BASE = rawBase.endsWith('/api/v1') ? rawBase : `${rawBase}/api/v1`;
 
 export const api = {
   // Fetch Logistics Vendors
@@ -184,7 +185,9 @@ export const api = {
 
   // Backend Health check
   async getHealth(): Promise<{ status: string; surepass_mode: string; supabase_connected: boolean }> {
-    const res = await fetch(`/health`);
+    const rootUrl = API_BASE.replace(/\/api\/v1\/?$/, '');
+    const healthUrl = rootUrl ? `${rootUrl}/health` : '/health';
+    const res = await fetch(healthUrl);
     if (!res.ok) {
       throw new Error(`Health check failed: ${res.statusText}`);
     }

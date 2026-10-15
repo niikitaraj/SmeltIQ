@@ -536,7 +536,7 @@ export const App: React.FC = () => {
           vendors={vendors}
           movements={movements}
           onClose={() => setIsSupervisorDeskOpen(false)}
-          onToggleVendor={(vendorCode) => {
+          onToggleVendor={(vendorCode: string) => {
             setVendors((prev) =>
               prev.map((v) =>
                 v.vendor_code === vendorCode ? { ...v, is_active: !v.is_active } : v
@@ -548,3 +548,5 @@ export const App: React.FC = () => {
     </div>
   );
 };
+
+export default App;
