@@ -3,6 +3,25 @@ export type MovementType = 'ENTRY' | 'EXIT';
 export type PUCStatus = 'VALID' | 'EXPIRED' | 'NOT_AVAILABLE';
 export type PermitStatus = 'VALID' | 'EXPIRED' | 'NOT_AVAILABLE' | 'NOT_APPLICABLE';
 
+
+export interface OverrideModalProps {
+  isOpen: boolean;
+  decision: ComplianceDecision;
+  guardId: string;
+  onClose: () =&gt; void;
+  onSuccess?: (updatedDecision: ComplianceDecision) =&gt; void;
+}
+
+export interface SupervisorDeskProps {
+  isOpen: boolean;
+  currentUser: UserProfile;
+  vendors: Vendor[];
+  movements: MovementLogItem[];
+  onClose: () =&gt; void;
+  onToggleVendor?: (vendorCode: string) =&gt; void;
+}
+
+
 export interface Vendor {
   id: string;
   vendor_code: string;
