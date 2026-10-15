@@ -8,7 +8,8 @@
 !.env.example
 backend/.env
 frontend/.env
-*.local
+# Local Environment Shims
+powershell.cmd
 
 # Python / FastAPI
 __pycache__/

@@ -66,6 +66,7 @@ export const api = {
     gate_id: string;
     movement_type: MovementType;
     ocr_confidence?: number;
+    force_refresh?: boolean;
   }): Promise<ComplianceDecision> {
     const res = await fetch(`${API_BASE}/gate/verify`, {
       method: 'POST',
@@ -101,44 +102,25 @@ export const api = {
     }
     return res.json();
   },
-
-  // Fetch Testcases catalog
-  async getTestcases(): Promise<any[]> {
-    const res = await fetch(`${API_BASE}/gate/testcases`);
+  // Check vehicle cache status (0 API Cost)
+  async checkVehicleCache(vehicleNumber: string): Promise<{
+    cached: boolean;
+    vehicle_number: string;
+    owner_name?: string;
+    rc_status?: string;
+    puc_valid_until?: string;
+    compliance_status?: string;
+    data_source: string;
+    api_cost?: number;
+  }> {
+    const clean = vehicleNumber.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    const res = await fetch(`${API_BASE}/gate/cache/${clean}`);
     if (!res.ok) {
-      throw new Error(`Failed to load testcases: ${res.statusText}`);
+      throw new Error(`Failed to check cache: ${res.statusText}`);
     }
     return res.json();
   },
 
-  // Run Batch Simulation
-  async runBatchTest(
-    guardId = 'GUARD-8812',
-    gateId = 'GATE-NORTH-01',
-    customTestcases?: Array<{
-      vehicle_number: string;
-      vendor_code?: string;
-      scenario?: string;
-      movement_type?: string;
-      ocr_confidence?: number;
-    }>
-  ): Promise<ComplianceDecision[]> {
-    const payload = customTestcases
-      ? { guard_id: guardId, gate_id: gateId, testcases: customTestcases }
-      : { guard_id: guardId, gate_id: gateId };
-
-    const res = await fetch(`${API_BASE}/gate/batch-test`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
-    if (!res.ok) {
-      throw new Error(`Batch test failed: ${res.statusText}`);
-    }
-    return res.json();
-  },
 
   // Auth: Shift Login for Guard or Supervisor
   async login(

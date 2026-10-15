@@ -65,6 +65,7 @@ async def health_check():
     return {
         "status": "healthy",
         "surepass_mode": "MOCK" if settings.is_surepass_mock_active() else "LIVE_API",
+        "surepass_target_url": settings.get_surepass_rc_url(),
         "supabase_connected": db_manager.is_connected,
         "ocr_engine": "Active (PyTesseract / OpenCV / Adaptive Heuristic)"
     }

@@ -44,6 +44,15 @@ CREATE TABLE gate_movements (
     vendor_id UUID REFERENCES vendors(id) ON DELETE SET NULL,
     rc_status VARCHAR(50),
     puc_valid_until DATE,
+    insurance_valid_until DATE,
+    vehicle_class VARCHAR(100),
+    permit_number VARCHAR(100),
+    permit_type VARCHAR(100),
+    permit_valid_until DATE,
+    permit_status VARCHAR(50) DEFAULT 'NOT_AVAILABLE',
+    national_permit_number VARCHAR(100),
+    national_permit_upto DATE,
+    national_permit_issued_by VARCHAR(150),
     compliance_status compliance_status_enum NOT NULL,
     rejection_reasons TEXT[] DEFAULT '{}',
     raw_surepass_payload JSONB,
@@ -60,6 +69,9 @@ CREATE INDEX idx_gate_movements_vendor_id ON gate_movements(vendor_id);
 CREATE INDEX idx_gate_movements_compliance_status ON gate_movements(compliance_status);
 CREATE INDEX idx_gate_movements_created_at ON gate_movements(created_at DESC);
 CREATE INDEX idx_gate_movements_gate_id ON gate_movements(gate_id);
+CREATE INDEX idx_gate_movements_permit_number ON gate_movements(permit_number);
+CREATE INDEX idx_gate_movements_permit_status ON gate_movements(permit_status);
+CREATE INDEX idx_gate_movements_national_permit ON gate_movements(national_permit_number);
 
 -- GIN Index for rapid querying over raw JSON payload
 CREATE INDEX idx_gate_movements_raw_payload ON gate_movements USING GIN (raw_surepass_payload);

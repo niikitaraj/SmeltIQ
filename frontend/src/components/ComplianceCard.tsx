@@ -13,7 +13,8 @@ import {
   FileCode,
   ShieldCheck,
   KeyRound,
-  ExternalLink
+  ExternalLink,
+  FileCheck
 } from 'lucide-react';
 import { ComplianceDecision } from '../types';
 
@@ -57,6 +58,45 @@ export const ComplianceCard: React.FC<ComplianceCardProps> = ({
       return (
         <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/20 text-rose-300 border border-rose-500/30">
           EXPIRED ({Math.abs(diffDays)} days overdue)
+        </span>
+      );
+    }
+  };
+
+  // Format Transport Permit (Local & National) badge
+  const renderPermitBadge = () => {
+    if (decision.permit_status === 'NOT_APPLICABLE') {
+      return (
+        <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-500/20 text-slate-300 border border-slate-500/30">
+          NOT APPLICABLE (NON-COMMERCIAL)
+        </span>
+      );
+    }
+
+    if (!decision.permit_valid_until) {
+      return (
+        <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-500/20 text-rose-300 border border-rose-500/30">
+          MISSING / NO PERMIT
+        </span>
+      );
+    }
+
+    const permitDate = new Date(decision.permit_valid_until);
+    const today = new Date();
+    const diffTime = permitDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const isNational = Boolean(decision.national_permit_number || (decision.permit_type && decision.permit_type.toUpperCase().includes('NATIONAL')));
+
+    if (diffDays >= 0) {
+      return (
+        <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+          VALID {isNational ? '(National)' : '(Local)'} • {diffDays}d left
+        </span>
+      );
+    } else {
+      return (
+        <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-500/20 text-rose-300 border border-rose-500/30">
+          EXPIRED ({Math.abs(diffDays)}d overdue)
         </span>
       );
     }
@@ -169,7 +209,13 @@ export const ComplianceCard: React.FC<ComplianceCardProps> = ({
             <div className="font-semibold text-sm text-slate-200 truncate">
               {decision.owner_name || 'NOT DETECTED'}
             </div>
-            <div className="text-[10px] text-slate-500 mt-0.5">Surepass Live Registry</div>
+            <div className="text-[10px] text-slate-400 mt-0.5 font-medium flex items-center space-x-1">
+              {decision.is_cached ? (
+                <span className="text-emerald-400 font-mono">⚡ 0 API Cost (Supabase Cache)</span>
+              ) : (
+                <span className="text-sky-400 font-mono">🛰️ Surepass Sandbox API</span>
+              )}
+            </div>
           </div>
 
           {/* Vehicle RC Status */}
@@ -202,6 +248,36 @@ export const ComplianceCard: React.FC<ComplianceCardProps> = ({
               {decision.puc_valid_until || 'NO PUC RECORD'}
             </div>
             <div className="mt-1">{renderPUCBadge()}</div>
+            <div className="text-[10px] text-slate-500 mt-1">Rule 2: Environmental Norms</div>
+          </div>
+
+          {/* Statutory Transport Permit Card */}
+          <div className="bg-slate-950/70 border border-slate-800/90 rounded-xl p-3">
+            <div className="flex items-center space-x-1.5 text-slate-400 text-[11px] font-medium uppercase mb-1">
+              <FileCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Statutory Transport Permit</span>
+            </div>
+            <div className="flex items-center justify-between gap-1">
+              <div className="text-xs font-mono font-semibold text-slate-200 truncate" title={decision.national_permit_number || decision.permit_number || 'N/A'}>
+                {decision.national_permit_number ? (
+                  <span>NP: {decision.national_permit_number}</span>
+                ) : decision.permit_number ? (
+                  <span>Permit: {decision.permit_number}</span>
+                ) : (
+                  <span className="text-slate-400">NO PERMIT ON FILE</span>
+                )}
+              </div>
+              {decision.permit_type && (
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-300 font-mono border border-sky-500/20 truncate max-w-[110px]" title={decision.permit_type}>
+                  {decision.permit_type}
+                </span>
+              )}
+            </div>
+            <div className="text-[10px] font-mono text-slate-400 mt-0.5">
+              Valid: {decision.permit_valid_until || 'N/A'}
+            </div>
+            <div className="mt-1">{renderPermitBadge()}</div>
+            <div className="text-[10px] text-slate-500 mt-1">Rule 4: Transport Permit</div>
           </div>
 
           {/* Logistics Vendor Match */}

@@ -1,6 +1,7 @@
 export type ComplianceStatus = 'ALLOWED' | 'DENIED' | 'OVERRIDDEN';
 export type MovementType = 'ENTRY' | 'EXIT';
 export type PUCStatus = 'VALID' | 'EXPIRED' | 'NOT_AVAILABLE';
+export type PermitStatus = 'VALID' | 'EXPIRED' | 'NOT_AVAILABLE' | 'NOT_APPLICABLE';
 
 export interface Vendor {
   id: string;
@@ -27,6 +28,12 @@ export interface ComplianceDecision {
   rc_status: string;
   puc_valid_until?: string | null;
   puc_status: PUCStatus;
+  permit_number?: string | null;
+  permit_type?: string | null;
+  permit_valid_until?: string | null;
+  permit_status?: PermitStatus;
+  national_permit_number?: string | null;
+  national_permit_upto?: string | null;
   compliance_status: ComplianceStatus;
   rejection_reasons: string[];
   timestamp: string;
@@ -36,6 +43,8 @@ export interface ComplianceDecision {
   vehicle_class?: string;
   insurance_upto?: string;
   raw_surepass_payload?: Record<string, any>;
+  is_cached?: boolean;
+  data_source?: string;
 }
 
 export interface GuardOverrideRequest {
@@ -68,6 +77,12 @@ export interface MovementLogItem {
   vendor_name?: string;
   rc_status?: string;
   puc_valid_until?: string | null;
+  permit_number?: string | null;
+  permit_type?: string | null;
+  permit_valid_until?: string | null;
+  permit_status?: PermitStatus | string;
+  national_permit_number?: string | null;
+  national_permit_upto?: string | null;
   compliance_status: ComplianceStatus;
   rejection_reasons: string[];
   guard_id: string;

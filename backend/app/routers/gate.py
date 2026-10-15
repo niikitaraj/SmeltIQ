@@ -96,7 +96,16 @@ PRESET_TESTCASES = [
         "expected_status": "ALLOWED",
         "category": "Happy Path",
         "scenario": "ALLOWED",
-        "description": "High-axle dumper with active RC, valid PUC (+150 days), and approved contract."
+    },
+    {
+        "id": "tc-09",
+        "title": "Real Test Case: MH34CC0820 (Omesh Tikaram Bansod)",
+        "vehicle_number": "MH34CC0820",
+        "vendor_code": "VEND-TATALOG-01",
+        "expected_status": "DENIED",
+        "category": "Statutory Violation",
+        "scenario": "EXPIRED_PUC",
+        "description": "TVS Jupiter ZX. Active RC, valid insurance (2027), but PUC expired on 2026-07-03."
     }
 ]
 
@@ -105,6 +114,90 @@ PRESET_TESTCASES = [
 async def list_testcases():
     """Returns the catalog of multi-scenario dummy testcases for instant testing."""
     return PRESET_TESTCASES
+
+
+@router.get("/mock/testcase/MH34CC0820", summary="Mock test handler for vehicle MH34CC0820")
+@router.post("/mock/testcase/MH34CC0820", summary="Mock test handler for vehicle MH34CC0820")
+async def mock_test_handler_mh34cc0820(
+    gate_id: str = Query("GATE-01", description="Gate Identifier"),
+    guard_id: str = Query("GUARD-TEST-01", description="Guard Identifier"),
+    vendor_code: str = Query("VEND-TATALOG-01", description="Transporter Vendor Code")
+):
+    """
+    Automated gate entry unit test handler for verified vehicle MH34CC0820.
+    Evaluates statutory compliance using the seeded Surepass RC response payload.
+    Expected outcome: DENIED (PUC certificate expired on 2026-07-03).
+    """
+    req = ComplianceVerifyRequest(
+        vehicle_number="MH34CC0820",
+        expected_vendor_code=vendor_code,
+        guard_id=guard_id,
+        gate_id=gate_id,
+        movement_type="ENTRY",
+        ocr_confidence=98.50,
+        simulate_scenario="EXPIRED_PUC"
+    )
+    decision = await compliance_engine.verify_vehicle_entry(req)
+    return {
+        "status": "success",
+        "testcase": "MH34CC0820",
+        "expected_status": "DENIED",
+        "vehicle_details": {
+            "owner_name": "Omesh Tikaram Bansod",
+            "vehicle_model": "TVS JUPITER ZX INTELLIGO",
+            "vehicle_class": "M-Cycle/Scooter(2WN)",
+            "puc_valid_until": "2026-07-03",
+            "insurance_valid_until": "2027-07-18"
+        },
+        "evaluation": {
+            "compliance_status": decision.compliance_status,
+            "rejection_reasons": decision.rejection_reasons,
+            "passed": decision.compliance_status == "DENIED"
+        },
+        "audit_record": decision
+    }
+
+
+@router.get("/cache/{vehicle_number}", summary="Check vehicle registration in Supabase cache")
+async def check_vehicle_cache(
+    vehicle_number: str,
+    force_refresh: bool = Query(False, description="Set True to bypass Supabase cache and force live external API fetch")
+):
+    """
+    Checks Supabase PostgreSQL database first for cached statutory details of a vehicle registration.
+    Returns cached statutory record directly if found (0 API cost), or indicates cache miss.
+    """
+    clean_plate = "".join(ch for ch in vehicle_number.upper() if ch.isalnum())
+    cached = await db_manager.get_cached_vehicle_data(clean_plate, force_refresh=force_refresh)
+    if cached:
+        return {
+            "cached": True,
+            "vehicle_number": clean_plate,
+            "owner_name": cached.get("owner_name"),
+            "rc_status": cached.get("rc_status"),
+            "vehicle_class": cached.get("vehicle_class"),
+            "puc_valid_until": cached.get("puc_valid_until"),
+            "insurance_valid_until": cached.get("insurance_valid_until"),
+            "permit_number": cached.get("permit_number"),
+            "permit_type": cached.get("permit_type"),
+            "permit_valid_until": cached.get("permit_valid_until"),
+            "permit_status": cached.get("permit_status", "NOT_AVAILABLE"),
+            "national_permit_number": cached.get("national_permit_number"),
+            "national_permit_upto": cached.get("national_permit_upto"),
+            "compliance_status": cached.get("compliance_status"),
+            "rejection_reasons": cached.get("rejection_reasons", []),
+            "last_verified_at": cached.get("created_at"),
+            "data_source": "SUPABASE_CACHE",
+            "api_cost": 0,
+            "message": f"Statutory details for {clean_plate} retrieved directly from Supabase PostgreSQL cache (0 external API cost)."
+        }
+    return {
+        "cached": False,
+        "vehicle_number": clean_plate,
+        "message": f"Vehicle '{clean_plate}' not found in Supabase database cache. Next verification will execute an external HTTP request to Surepass Sandbox API and persist records.",
+        "data_source": "NOT_CACHED",
+        "api_cost_on_next_verify": 1
+    }
 
 
 @router.post("/verify", response_model=ComplianceDecision, summary="Verify vehicle statutory compliance & gate entry")
@@ -119,6 +212,8 @@ async def verify_gate_entry(request: ComplianceVerifyRequest):
     try:
         decision = await compliance_engine.verify_vehicle_entry(request)
         return decision
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("Compliance verification failed: %s", e)
         raise HTTPException(status_code=500, detail=f"Compliance evaluation failed: {str(e)}")

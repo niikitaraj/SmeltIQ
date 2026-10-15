@@ -265,6 +265,25 @@
     // Seeded Movement History Logs
     const INITIAL_MOVEMENTS = [
       {
+        id: 'mov-100',
+        gate_id: 'Gate 01 - North Material Entrance',
+        movement_type: 'ENTRY',
+        vehicle_number: 'MH34CC0820',
+        ocr_confidence: 98.5,
+        owner_name: 'Omesh Tikaram Bansod',
+        vendor_code: 'VEND-TATALOG-01',
+        vendor_name: 'Tata Steel Supply Chain & Freight Logistics',
+        rc_status: 'ACTIVE',
+        puc_valid_until: '2026-07-03',
+        puc_status: 'EXPIRED',
+        compliance_status: 'DENIED',
+        rejection_reasons: ['Pollution Under Control (PUC) certificate expired on 2026-07-03'],
+        guard_id: 'GUARD-TEST-01',
+        vehicle_class: 'M-Cycle/Scooter(2WN)',
+        insurance_upto: '2027-07-18',
+        created_at: new Date(Date.now() - 3600000 * 0.5).toISOString()
+      },
+      {
         id: 'mov-101',
         gate_id: 'Gate 01 - North Material Entrance',
         movement_type: 'ENTRY',
@@ -808,11 +827,10 @@
       const [overrideReason, setOverrideReason] = useState('');
       const [overrideError, setOverrideError] = useState(null);
       const [isSupervisorDeskOpen, setIsSupervisorDeskOpen] = useState(false);
-      const [isBatchRunning, setIsBatchRunning] = useState(false);
-      const [selectedScenario, setSelectedScenario] = useState('ALLOWED');
 
       const videoRef = useRef(null);
       const streamRef = useRef(null);
+      const fileInputRef = useRef(null);
 
       // Clock
       useEffect(() => {
@@ -889,7 +907,13 @@
         let vehicle_class = 'Multi-Axle Heavy Goods Trailer';
         let insurance_upto = '2027-05-30';
 
-        if (scenario === 'EXPIRED_PUC' || upperPlate.includes('5678')) {
+        if (upperPlate === 'MH34CC0820' || upperPlate.includes('MH34CC')) {
+          puc_status = 'EXPIRED';
+          puc_valid_until = '2026-07-03';
+          owner_name = 'Omesh Tikaram Bansod';
+          vehicle_class = 'M-Cycle/Scooter(2WN)';
+          insurance_upto = '2027-07-18';
+        } else if (scenario === 'EXPIRED_PUC' || upperPlate.includes('5678')) {
           puc_status = 'EXPIRED';
           puc_valid_until = '2026-09-30';
           owner_name = 'SURESH TRUCKING CO.';
@@ -961,18 +985,59 @@
         };
       };
 
-      const executeVerification = (plate, vendorCode, scenario) => {
-        setIsScanning(true);
-        setTimeout(() => {
-          const evalResult = evaluateCompliance(plate, vendorCode, scenario);
-          setDecision(evalResult);
-          setMovements(prev => [evalResult, ...prev]);
-          setIsScanning(false);
+      const executeVerification = async (plate, vendorCode) => {
+        const cleanPlate = (plate || '').toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
+        if (!cleanPlate) {
+          alert('Please enter a vehicle license plate number.');
+          return;
+        }
 
-          if (evalResult.is_blacklisted) {
-            setSopAlert(`🚨 SECURITY ALERT: Blacklisted vehicle ${evalResult.vehicle_number} detected! Barrier Locked. Detain in Bay 3.`);
+        setIsScanning(true);
+
+        try {
+          const res = await fetch('http://localhost:8000/api/v1/gate/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              vehicle_number: cleanPlate,
+              expected_vendor_code: vendorCode || selectedVendorCode || 'VEND-TATALOG-01',
+              guard_id: currentUser ? currentUser.employee_id : 'GUARD-8812',
+              gate_id: activeGate || 'Gate 01 - North Material Entrance',
+              movement_type: movementType || 'ENTRY',
+              ocr_confidence: ocrConfidence || 98.5,
+              force_refresh: false
+            })
+          });
+
+          if (res.ok) {
+            const apiResult = await res.json();
+            setDecision(apiResult);
+            setMovements(prev => [apiResult, ...prev]);
+            setIsScanning(false);
+            if (apiResult.compliance_status === 'DENIED' && (apiResult.rejection_reasons || []).some(r => r.includes('Blacklist') || r.includes('Watchlist'))) {
+              setSopAlert(`🚨 SECURITY ALERT: Blacklisted vehicle ${apiResult.vehicle_number} detected! Barrier Locked. Detain in Bay 3.`);
+            }
+            return;
+          } else {
+            let errDetail = `Server returned HTTP ${res.status}`;
+            try {
+              const errJson = await res.json();
+              errDetail = errJson.detail || errJson.message || JSON.stringify(errJson);
+            } catch (e) {
+              errDetail = await res.text();
+            }
+            setIsScanning(false);
+            setSopAlert(`❌ Verification Error (HTTP ${res.status}): ${errDetail}`);
+            alert(`Surepass Live Verification Failed (HTTP ${res.status}):\n${errDetail}`);
+            return;
           }
-        }, 350);
+        } catch (apiErr) {
+          console.error('Backend API connection error:', apiErr);
+          setIsScanning(false);
+          setSopAlert(`❌ Backend Connection Error: Failed to reach http://localhost:8000. Ensure the FastAPI backend is running.`);
+          alert(`Backend Connection Error: Unable to connect to http://localhost:8000. Is the backend server running?`);
+          return;
+        }
       };
 
       const handleOverrideSubmit = (e) => {
@@ -1005,32 +1070,15 @@
         setOverrideReason('');
       };
 
-      const loadPreset = (plate, vendorCode, scenario) => {
-        setVehicleNumber(plate);
-        setSelectedVendorCode(vendorCode);
-        setSelectedScenario(scenario);
-      };
-
-      // Run All 8 Multi-Scenario Edge Testcases Sequentially
-      const runBatchSimulation = async () => {
-        setIsBatchRunning(true);
-        const testCases = [
-          { plate: 'AP31TJ9988', vendor: 'VEND-TATALOG-01', scenario: 'ALLOWED' },
-          { plate: 'MH12AB5678', vendor: 'VEND-JINDAL-02', scenario: 'EXPIRED_PUC' },
-          { plate: 'AP31XX0001', vendor: 'VEND-VIZAG-03', scenario: 'SUSPENDED_RC' },
-          { plate: 'AP31CG7744', vendor: 'VEND-VIZAG-03', scenario: 'ALLOWED' },
-          { plate: 'AP31AP8821', vendor: 'VEND-APEX-04', scenario: 'ALLOWED' },
-          { plate: 'AP31TJ9988', vendor: 'VEND-BLACKLIST-99', scenario: 'INACTIVE' },
-          { plate: 'DL01AB1234', vendor: 'VEND-BLACKLIST-99', scenario: 'BLACKLISTED' },
-          { plate: 'OD02NF0000', vendor: 'VEND-APEX-04', scenario: 'NOT_FOUND' }
-        ];
-
-        for (const tc of testCases) {
-          loadPreset(tc.plate, tc.vendor, tc.scenario);
-          executeVerification(tc.plate, tc.vendor, tc.scenario);
-          await new Promise(r => setTimeout(r, 450));
-        }
-        setIsBatchRunning(false);
+      // Handle Direct Plate Image Upload
+      const handleFileUpload = (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        setIsScanning(true);
+        setTimeout(() => {
+          setIsScanning(false);
+          executeVerification(vehicleNumber, selectedVendorCode);
+        }, 750);
       };
 
       // Blacklist Add/Remove Handlers
@@ -1580,157 +1628,75 @@
                           </div>
                         </div>
 
-                        {/* Action Trigger: Simulate Auto-Capture */}
-                        <div className="mt-3 flex gap-2">
+                        {/* Action Triggers: Camera Capture & Image Upload */}
+                        <div className="mt-3 grid grid-cols-2 gap-2">
                           <button
                             onClick={() => {
                               captureFrame();
-                              executeVerification(vehicleNumber, selectedVendorCode, selectedScenario);
+                              executeVerification(vehicleNumber, selectedVendorCode);
                             }}
                             disabled={isScanning}
-                            className="flex-1 py-3 px-4 rounded-xl font-bold text-xs uppercase tracking-wider bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow transition active:scale-[0.99] flex items-center justify-center space-x-2"
+                            className="py-3 px-3 rounded-xl font-bold text-xs uppercase tracking-wider bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow transition active:scale-[0.99] flex items-center justify-center space-x-1.5"
                           >
                             <Icons.Scan />
-                            <span>{isScanning ? 'Grabbing Frame & Running OCR...' : 'Simulate Auto-Capture'}</span>
+                            <span>{isScanning ? 'Processing OCR...' : 'Capture & Scan Plate'}</span>
                           </button>
+
+                          <button
+                            onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                            className="py-3 px-3 rounded-xl font-bold text-xs uppercase tracking-wider bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition active:scale-[0.99] flex items-center justify-center space-x-1.5"
+                          >
+                            <Icons.Camera />
+                            <span>Upload Plate Photo</span>
+                          </button>
+                          <input
+                            type="file"
+                            ref={fileInputRef}
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleFileUpload}
+                          />
                         </div>
 
-                        {/* Multi-Scenario Dummy Testcases Matrix (All 8 Cases) */}
-                        <div className="mt-4 pt-3 border-t border-slate-200">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-[11px] font-bold text-slate-600 uppercase flex items-center space-x-1">
-                              <Icons.Sparkles />
-                              <span>Dummy Test Suite (8 Edge Scenarios)</span>
+                        {/* Production ANPR Telemetry & Gate Status Bar */}
+                        <div className="mt-4 pt-3.5 border-t border-slate-200 space-y-2.5">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                              Target Vehicle Plate
                             </span>
-                            <button
-                              onClick={() => runBatchSimulation()}
-                              disabled={isBatchRunning}
-                              className="text-[10px] px-2 py-0.5 rounded bg-blue-50 text-blue-700 hover:bg-blue-100 font-semibold border border-blue-200 transition flex items-center space-x-1"
-                              title="Simulate all 8 testcases sequentially into audit log"
-                            >
-                              <span>{isBatchRunning ? 'Running Suite...' : '⚡ Run Full Test Suite'}</span>
-                            </button>
+                            <span className="font-mono font-bold text-slate-900 bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200">
+                              {vehicleNumber || 'NO PLATE DETECTED'}
+                            </span>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
-                            {/* Case 1 */}
-                            <button
-                              onClick={() => {
-                                loadPreset('AP31TJ9988', 'VEND-TATALOG-01', 'ALLOWED');
-                                executeVerification('AP31TJ9988', 'VEND-TATALOG-01', 'ALLOWED');
-                              }}
-                              className="p-2 rounded-xl bg-emerald-50/70 hover:bg-emerald-100/70 border border-emerald-200 text-left transition"
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                              Transporter / Vendor
+                            </span>
+                            <select
+                              value={selectedVendorCode}
+                              onChange={(e) => setSelectedVendorCode(e.target.value)}
+                              className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500 max-w-[210px] truncate"
                             >
-                              <div className="text-[11px] font-mono font-bold text-emerald-800 flex justify-between">
-                                <span>AP31TJ9988</span>
-                                <span className="text-[9px] bg-emerald-200/70 text-emerald-900 px-1 rounded font-bold">PASS</span>
-                              </div>
-                              <div className="text-[10px] text-slate-600 truncate mt-0.5">Tata Steel • Valid PUC</div>
-                            </button>
+                              {vendors.map(v => (
+                                <option key={v.id} value={v.vendor_code}>
+                                  {v.vendor_name} ({v.vendor_code})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
 
-                            {/* Case 2 */}
+                          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
+                            <div className="flex items-center space-x-2">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                              <span className="text-[11px] font-medium text-slate-600">Optical OCR Engine: Online</span>
+                            </div>
                             <button
-                              onClick={() => {
-                                loadPreset('MH12AB5678', 'VEND-JINDAL-02', 'EXPIRED_PUC');
-                                executeVerification('MH12AB5678', 'VEND-JINDAL-02', 'EXPIRED_PUC');
-                              }}
-                              className="p-2 rounded-xl bg-rose-50/70 hover:bg-rose-100/70 border border-rose-200 text-left transition"
+                              onClick={() => setActivePage('MANUAL_ENTRY')}
+                              className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center space-x-1"
                             >
-                              <div className="text-[11px] font-mono font-bold text-rose-800 flex justify-between">
-                                <span>MH12AB5678</span>
-                                <span className="text-[9px] bg-rose-200/70 text-rose-900 px-1 rounded font-bold">DENY</span>
-                              </div>
-                              <div className="text-[10px] text-slate-600 truncate mt-0.5">Jindal • Expired PUC (-22d)</div>
-                            </button>
-
-                            {/* Case 3 */}
-                            <button
-                              onClick={() => {
-                                loadPreset('AP31XX0001', 'VEND-VIZAG-03', 'SUSPENDED_RC');
-                                executeVerification('AP31XX0001', 'VEND-VIZAG-03', 'SUSPENDED_RC');
-                              }}
-                              className="p-2 rounded-xl bg-amber-50/70 hover:bg-amber-100/70 border border-amber-200 text-left transition"
-                            >
-                              <div className="text-[11px] font-mono font-bold text-amber-900 flex justify-between">
-                                <span>AP31XX0001</span>
-                                <span className="text-[9px] bg-amber-200/70 text-amber-900 px-1 rounded font-bold">OVERRIDE</span>
-                              </div>
-                              <div className="text-[10px] text-slate-600 truncate mt-0.5">Vizag Coastal • Suspended RC</div>
-                            </button>
-
-                            {/* Case 4 */}
-                            <button
-                              onClick={() => {
-                                loadPreset('AP31CG7744', 'VEND-VIZAG-03', 'ALLOWED');
-                                executeVerification('AP31CG7744', 'VEND-VIZAG-03', 'ALLOWED');
-                              }}
-                              className="p-2 rounded-xl bg-emerald-50/70 hover:bg-emerald-100/70 border border-emerald-200 text-left transition"
-                            >
-                              <div className="text-[11px] font-mono font-bold text-emerald-800 flex justify-between">
-                                <span>AP31CG7744</span>
-                                <span className="text-[9px] bg-emerald-200/70 text-emerald-900 px-1 rounded font-bold">PASS</span>
-                              </div>
-                              <div className="text-[10px] text-slate-600 truncate mt-0.5">Coastal Slag Tipper (Pass)</div>
-                            </button>
-
-                            {/* Case 5 */}
-                            <button
-                              onClick={() => {
-                                loadPreset('AP31AP8821', 'VEND-APEX-04', 'ALLOWED');
-                                executeVerification('AP31AP8821', 'VEND-APEX-04', 'ALLOWED');
-                              }}
-                              className="p-2 rounded-xl bg-emerald-50/70 hover:bg-emerald-100/70 border border-emerald-200 text-left transition"
-                            >
-                              <div className="text-[11px] font-mono font-bold text-emerald-800 flex justify-between">
-                                <span>AP31AP8821</span>
-                                <span className="text-[9px] bg-emerald-200/70 text-emerald-900 px-1 rounded font-bold">PASS</span>
-                              </div>
-                              <div className="text-[10px] text-slate-600 truncate mt-0.5">Apex Ore Hauler (Pass)</div>
-                            </button>
-
-                            {/* Case 6 */}
-                            <button
-                              onClick={() => {
-                                loadPreset('AP31TJ9988', 'VEND-BLACKLIST-99', 'INACTIVE');
-                                executeVerification('AP31TJ9988', 'VEND-BLACKLIST-99', 'INACTIVE');
-                              }}
-                              className="p-2 rounded-xl bg-rose-50/70 hover:bg-rose-100/70 border border-rose-200 text-left transition"
-                            >
-                              <div className="text-[11px] font-mono font-bold text-rose-800 flex justify-between">
-                                <span>AP31TJ9988</span>
-                                <span className="text-[9px] bg-rose-200/70 text-rose-900 px-1 rounded font-bold">DENY</span>
-                              </div>
-                              <div className="text-[10px] text-slate-600 truncate mt-0.5">Deactivated Transporter</div>
-                            </button>
-
-                            {/* Case 7 */}
-                            <button
-                              onClick={() => {
-                                loadPreset('DL01AB1234', 'VEND-BLACKLIST-99', 'BLACKLISTED');
-                                executeVerification('DL01AB1234', 'VEND-BLACKLIST-99', 'BLACKLISTED');
-                              }}
-                              className="p-2 rounded-xl bg-rose-50/70 hover:bg-rose-100/70 border border-rose-200 text-left transition"
-                            >
-                              <div className="text-[11px] font-mono font-bold text-rose-800 flex justify-between">
-                                <span>DL01AB1234</span>
-                                <span className="text-[9px] bg-rose-200/70 text-rose-900 px-1 rounded font-bold">BLACKLIST</span>
-                              </div>
-                              <div className="text-[10px] text-slate-600 truncate mt-0.5">Multi-Violation Flagged</div>
-                            </button>
-
-                            {/* Case 8 */}
-                            <button
-                              onClick={() => {
-                                loadPreset('OD02NF0000', 'VEND-APEX-04', 'NOT_FOUND');
-                                executeVerification('OD02NF0000', 'VEND-APEX-04', 'NOT_FOUND');
-                              }}
-                              className="p-2 rounded-xl bg-rose-50/70 hover:bg-rose-100/70 border border-rose-200 text-left transition"
-                            >
-                              <div className="text-[11px] font-mono font-bold text-rose-800 flex justify-between">
-                                <span>OD02NF0000</span>
-                                <span className="text-[9px] bg-rose-200/70 text-rose-900 px-1 rounded font-bold">404</span>
-                              </div>
-                              <div className="text-[10px] text-slate-600 truncate mt-0.5">Not Found on RTO Database</div>
+                              <span>Manual Entry Mode</span>
+                              <span>&rarr;</span>
                             </button>
                           </div>
                         </div>
@@ -1739,6 +1705,75 @@
 
                     {/* Right Column: Real-Time Compliance Decision Stream */}
                     <div className="lg:col-span-7 space-y-4">
+                      {decision && (
+                        <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 text-white shadow-xl space-y-3">
+                          <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-800">
+                            <div className="flex items-center space-x-2">
+                              <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse"></span>
+                              <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-200">
+                                Statutory Audit Pipeline Flow
+                              </span>
+                            </div>
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono ${
+                              decision.is_cached
+                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                                : 'bg-blue-500/20 text-blue-400 border border-blue-500/40'
+                            }`}>
+                              {decision.is_cached ? '⚡ 0 API COST (SUPABASE CACHE HIT)' : '🛰️ SUREPASS SANDBOX PULL & PERSIST'}
+                            </span>
+                          </div>
+
+                          {/* 3-Stage Pipeline Diagram mirroring the User's Flowchart */}
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs font-sans">
+                            {/* Stage 1: Incoming Request */}
+                            <div className="p-2.5 rounded-xl bg-slate-800/90 border border-slate-700/80">
+                              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                1. Incoming Request
+                              </div>
+                              <div className="font-mono font-bold text-sm text-blue-400 mt-0.5 truncate">
+                                {decision.vehicle_number}
+                              </div>
+                              <div className="text-[10px] text-slate-400 mt-1">
+                                Gate: {decision.gate_id || 'North Gate'}
+                              </div>
+                            </div>
+
+                            {/* Stage 2: Supabase DB Lookup */}
+                            <div className="p-2.5 rounded-xl bg-slate-800/90 border border-slate-700/80">
+                              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                2. Check Supabase DB
+                              </div>
+                              <div className="font-mono font-bold text-xs text-slate-200 mt-0.5">
+                                gate_movements
+                              </div>
+                              <div className="text-[10px] mt-1 flex items-center space-x-1.5">
+                                <span className={`w-2 h-2 rounded-full ${decision.is_cached ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
+                                <span className={decision.is_cached ? 'text-emerald-300 font-semibold' : 'text-amber-300 font-semibold'}>
+                                  {decision.is_cached ? '[ Vehicle Exists ]' : '[ Vehicle Not Found ]'}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Stage 3: Execution Branch */}
+                            <div className={`p-2.5 rounded-xl border ${
+                              decision.is_cached
+                                ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300'
+                                : 'bg-blue-950/40 border-blue-500/40 text-blue-300'
+                            }`}>
+                              <div className="text-[10px] font-bold uppercase tracking-wider opacity-80">
+                                {decision.is_cached ? '3A. Return Cached Data' : '3B. Call Sandbox API'}
+                              </div>
+                              <div className="font-bold text-xs mt-0.5">
+                                {decision.is_cached ? '⚡ Supabase (0 API Cost)' : '🛰️ Surepass Sandbox (/rc/rc-full)'}
+                              </div>
+                              <div className="text-[10px] opacity-75 mt-1">
+                                {decision.is_cached ? 'Direct statutory details' : 'Evaluate & insert record'}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       {decision ? (
                         <div
                           className={`rounded-2xl border overflow-hidden shadow-md transition ${
@@ -1844,7 +1879,9 @@
                               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
                                 <span className="text-[10px] text-slate-500 uppercase block font-semibold">RC Registered Owner</span>
                                 <span className="font-semibold text-xs text-slate-800 truncate block">{decision.owner_name}</span>
-                                <span className="text-[10px] text-slate-400">Surepass RTO Verified</span>
+                                <span className="text-[10px] text-slate-500 font-medium">
+                                  {decision.is_cached ? '⚡ 0 API Cost (Supabase Cache)' : '🛰️ Surepass Sandbox API'}
+                                </span>
                               </div>
 
                               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
@@ -1860,6 +1897,16 @@
                                 <span className="font-mono text-xs text-slate-800 block">{decision.puc_valid_until || 'N/A'}</span>
                                 <span className={`text-[10px] font-semibold mt-1 inline-block ${decision.puc_status === 'VALID' ? 'text-emerald-700' : 'text-rose-700'}`}>
                                   {decision.puc_status === 'VALID' ? 'VALID (Compliant)' : 'EXPIRED (Violation)'}
+                                </span>
+                              </div>
+
+                              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                                <span className="text-[10px] text-slate-500 uppercase block font-semibold">Transport Permit (Rule 4)</span>
+                                <span className="font-mono text-xs text-slate-800 block truncate" title={decision.national_permit_number || decision.permit_number || 'N/A'}>
+                                  {decision.national_permit_number ? `NP: ${decision.national_permit_number}` : decision.permit_number ? `Permit: ${decision.permit_number}` : (decision.permit_status === 'NOT_APPLICABLE' ? 'Non-Commercial Exempt' : 'No Permit on File')}
+                                </span>
+                                <span className={`text-[10px] font-semibold mt-1 inline-block ${decision.permit_status === 'VALID' ? 'text-emerald-700' : decision.permit_status === 'NOT_APPLICABLE' ? 'text-slate-500' : 'text-rose-700'}`}>
+                                  {decision.permit_status === 'VALID' ? `VALID (${decision.national_permit_number ? 'National' : 'Local'})` : decision.permit_status || 'EXPIRED'}
                                 </span>
                               </div>
 
@@ -2172,11 +2219,21 @@
                       {/* Primary Verification Action Button */}
                       <button
                         type="button"
-                        onClick={() => executeVerification(vehicleNumber, selectedVendorCode, selectedScenario)}
-                        className="w-full py-3.5 px-6 rounded-xl font-bold text-xs uppercase tracking-wider bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow transition active:scale-[0.99] flex items-center justify-center space-x-2"
+                        disabled={isScanning}
+                        onClick={() => executeVerification(vehicleNumber, selectedVendorCode)}
+                        className="w-full py-3.5 px-6 rounded-xl font-bold text-xs uppercase tracking-wider bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow transition active:scale-[0.99] flex items-center justify-center space-x-2 disabled:opacity-60 cursor-pointer disabled:cursor-wait"
                       >
-                        <Icons.ShieldCheck />
-                        <span>Verify Statutory Records with Surepass</span>
+                        {isScanning ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            <span>Verifying Statutory Rules via Surepass...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Icons.ShieldCheck />
+                            <span>Verify Statutory Compliance</span>
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -2269,6 +2326,16 @@
                               <span className="text-xs text-emerald-700 font-semibold block">ACTIVE / COMPLIANT</span>
                               <span className="text-[10px] text-slate-400">National Insurance Co.</span>
                             </div>
+
+                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 col-span-2">
+                              <span className="text-[10px] text-slate-500 uppercase block mb-1">Transport Permit (Rule 4)</span>
+                              <span className="font-mono text-xs text-slate-800 block truncate" title={decision.national_permit_number || decision.permit_number || 'N/A'}>
+                                {decision.national_permit_number ? `National Permit: ${decision.national_permit_number}` : decision.permit_number ? `Local Permit: ${decision.permit_number}` : (decision.permit_status === 'NOT_APPLICABLE' ? 'Non-Commercial Exempt' : 'No Permit on File')}
+                              </span>
+                              <span className={`text-[10px] font-semibold mt-1 inline-block ${decision.permit_status === 'VALID' ? 'text-emerald-700' : decision.permit_status === 'NOT_APPLICABLE' ? 'text-slate-500' : 'text-rose-700'}`}>
+                                {decision.permit_status === 'VALID' ? `VALID (${decision.national_permit_number ? 'National' : 'Local'})` : decision.permit_status || 'EXPIRED'}
+                              </span>
+                            </div>
                           </div>
 
                           {/* Action Footers */}
@@ -2348,6 +2415,7 @@
                           <th className="p-3">Carrier Vendor</th>
                           <th className="p-3">Direction</th>
                           <th className="p-3">Compliance Verdict</th>
+                          <th className="p-3">Permit Status</th>
                           <th className="p-3">Inspector / Guard</th>
                           <th className="p-3">Decision Notes</th>
                         </tr>
@@ -2386,6 +2454,17 @@
                                 }`}
                               >
                                 {m.compliance_status}
+                              </span>
+                            </td>
+                            <td className="p-3 whitespace-nowrap">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-semibold ${
+                                m.permit_status === 'VALID'
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                  : m.permit_status === 'NOT_APPLICABLE'
+                                  ? 'bg-slate-50 text-slate-600 border border-slate-200'
+                                  : 'bg-rose-50 text-rose-700 border border-rose-200'
+                              }`}>
+                                {m.permit_status === 'VALID' ? (m.national_permit_number ? 'NP VALID' : 'LOCAL VALID') : (m.permit_status || 'EXPIRED')}
                               </span>
                             </td>
                             <td className="p-3 font-mono text-slate-500 whitespace-nowrap text-[11px]">

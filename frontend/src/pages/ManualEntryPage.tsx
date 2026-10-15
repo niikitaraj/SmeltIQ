@@ -47,6 +47,14 @@ export const ManualEntryPage: React.FC<ManualEntryPageProps> = ({
   const [selectedVendorCode, setSelectedVendorCode] = useState<string>(
     vendors[0]?.vendor_code || 'VEND-TATALOG-01'
   );
+
+  // Sync selectedVendorCode when vendors list is loaded
+  useEffect(() => {
+    if (vendors.length > 0 && (!selectedVendorCode || !vendors.some(v => v.vendor_code === selectedVendorCode))) {
+      setSelectedVendorCode(vendors[0].vendor_code);
+    }
+  }, [vendors, selectedVendorCode]);
+
   const [showVirtualKeyboard, setShowVirtualKeyboard] = useState<boolean>(false);
   const [isVerifying, setIsVerifying] = useState<boolean>(false);
   const [verificationError, setVerificationError] = useState<string | null>(null);
@@ -89,55 +97,15 @@ export const ManualEntryPage: React.FC<ManualEntryPageProps> = ({
     try {
       const isBlacklisted = isBlacklistedVehicle(cleanPlate);
 
-      const decision = await api
-        .verifyGateEntry({
-          vehicle_number: cleanPlate,
-          expected_vendor_code: selectedVendorCode,
-          guard_id: guardId,
-          gate_id: activeGate,
-          movement_type: movementType,
-          ocr_confidence: 100 // Manual entry has 100% transcription confidence
-        })
-        .catch(() => {
-          // Robust Fallback Evaluation
-          let status: 'ALLOWED' | 'DENIED' = 'ALLOWED';
-          const reasons: string[] = [];
-
-          const isExpiredPuc = cleanPlate.includes('5678') || cleanPlate.includes('EXP');
-          const isSuspended = cleanPlate.includes('0001') || cleanPlate.includes('SUS');
-
-          if (isBlacklisted || cleanPlate.includes('1234') || cleanPlate.includes('BLK')) {
-            status = 'DENIED';
-            reasons.push('Vehicle registration is flagged on Plant Watchlist / Blacklist Registry.');
-          } else if (isExpiredPuc) {
-            status = 'DENIED';
-            reasons.push('Pollution Under Control (PUC) certificate expired on 2026-09-30.');
-          } else if (isSuspended) {
-            status = 'DENIED';
-            reasons.push('Vehicle Registration Certificate (RC) status is SUSPENDED (Rule 1 violation).');
-          }
-
-          const matchedVendor = vendors.find((v) => v.vendor_code === selectedVendorCode);
-
-          return {
-            movement_id: 'mov-man-' + Math.random().toString(36).substring(2, 8),
-            vehicle_number: cleanPlate,
-            owner_name: 'MAHARASHTRA HEAVY FREIGHT CORP',
-            vendor_code: selectedVendorCode,
-            vendor_name: matchedVendor?.vendor_name || 'Apex Logistics Corp',
-            rc_status: isSuspended ? 'SUSPENDED' : 'ACTIVE',
-            puc_valid_until: isExpiredPuc ? '2026-09-30' : '2027-08-10',
-            puc_status: isExpiredPuc ? 'EXPIRED' : 'VALID',
-            compliance_status: status,
-            rejection_reasons: reasons,
-            timestamp: new Date().toISOString(),
-            guard_id: guardId,
-            gate_id: activeGate,
-            movement_type: movementType,
-            vehicle_class: 'Multi-Axle Trailer (Steel Carrier)',
-            insurance_upto: '2027-05-30'
-          } as ComplianceDecision;
-        });
+      const decision = await api.verifyGateEntry({
+        vehicle_number: cleanPlate,
+        expected_vendor_code: selectedVendorCode || 'VEND-TATALOG-01',
+        guard_id: guardId,
+        gate_id: activeGate,
+        movement_type: movementType,
+        ocr_confidence: 100, // Manual entry has 100% transcription confidence
+        force_refresh: false
+      });
 
       setActiveResult(decision);
       onVerifyDecision(decision);
@@ -342,8 +310,9 @@ export const ManualEntryPage: React.FC<ManualEntryPageProps> = ({
             {/* Large Primary Action Verify Button */}
             <button
               type="submit"
+              onClick={(e) => handleVerifySubmit(e)}
               disabled={isVerifying}
-              className="w-full py-4 rounded-2xl bg-gradient-to-r from-sky-500 via-indigo-600 to-sky-600 hover:from-sky-400 hover:to-indigo-500 text-slate-950 font-black text-sm uppercase tracking-widest shadow-xl shadow-sky-500/25 flex items-center justify-center space-x-2 transition active:scale-[0.98] disabled:opacity-50"
+              className="w-full py-4 rounded-2xl bg-gradient-to-r from-sky-500 via-indigo-600 to-sky-600 hover:from-sky-400 hover:to-indigo-500 text-slate-950 font-black text-sm uppercase tracking-widest shadow-xl shadow-sky-500/25 flex items-center justify-center space-x-2 transition active:scale-[0.98] disabled:opacity-50 cursor-pointer disabled:cursor-wait"
             >
               {isVerifying ? (
                 <>
@@ -511,6 +480,36 @@ export const ManualEntryPage: React.FC<ManualEntryPageProps> = ({
                     <span className="font-mono font-bold text-slate-200 text-xs block">
                       Expires: {activeResult.puc_valid_until || 'Not available in RTO record'}
                     </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 flex items-center space-x-1">
+                        <Truck className="w-3 h-3 text-slate-400" />
+                        <span>Transport Permit (Rule 4)</span>
+                      </span>
+                      <span
+                        className={`text-[10px] font-bold uppercase ${
+                          activeResult.permit_status === 'VALID'
+                            ? 'text-emerald-400'
+                            : activeResult.permit_status === 'NOT_APPLICABLE'
+                            ? 'text-slate-400'
+                            : 'text-rose-400'
+                        }`}
+                      >
+                        {activeResult.permit_status === 'VALID'
+                          ? `VALID (${activeResult.national_permit_number ? 'National' : 'Local'})`
+                          : activeResult.permit_status || 'EXPIRED'}
+                      </span>
+                    </div>
+                    <span className="font-mono font-bold text-slate-200 text-xs block">
+                      {activeResult.national_permit_number ? `NP: ${activeResult.national_permit_number}` : activeResult.permit_number ? `Permit: ${activeResult.permit_number}` : (activeResult.permit_status === 'NOT_APPLICABLE' ? 'Non-Commercial Exempt' : 'No Permit on File')}
+                    </span>
+                    {activeResult.permit_valid_until && (
+                      <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
+                        Validity: {activeResult.permit_valid_until} {activeResult.permit_type ? `(${activeResult.permit_type})` : ''}
+                      </span>
+                    )}
                   </div>
                 </div>
 

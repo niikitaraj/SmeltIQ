@@ -7,9 +7,7 @@ import {
   CheckCircle,
   AlertCircle,
   Scan,
-  Sparkles,
-  Edit3,
-  Zap
+  Edit3
 } from 'lucide-react';
 import { api } from '../services/api';
 import { OCRResult } from '../types';
@@ -19,17 +17,13 @@ interface CameraCaptureProps {
   onManualEntryToggle: () => void;
   isManualMode: boolean;
   currentVehicleNumber: string;
-  onRunBatchTest?: () => void;
-  isBatchRunning?: boolean;
 }
 
 export const CameraCapture: React.FC<CameraCaptureProps> = ({
   onPlateExtracted,
   onManualEntryToggle,
   isManualMode,
-  currentVehicleNumber,
-  onRunBatchTest,
-  isBatchRunning = false
+  currentVehicleNumber
 }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -70,8 +64,8 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
       console.warn('Webcam access error:', err);
       setCameraError(
         err.name === 'NotAllowedError'
-          ? 'Camera permission denied. Please allow camera access or use photo upload / test presets.'
-          : 'No camera hardware found or video stream inaccessible. You can upload plate photos or use test vehicles.'
+          ? 'Camera permission denied. Please allow camera access or use photo upload / manual entry.'
+          : 'No camera hardware found or video stream inaccessible. You can upload plate photos or use manual registration entry.'
       );
       setCameraActive(false);
     }
@@ -161,17 +155,6 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     } finally {
       setIsProcessing(false);
     }
-  };
-
-  // Preset quick tester buttons for fast demonstration
-  const handleQuickPreset = (plate: string, note: string) => {
-    setPreviewImage(null);
-    setLastOcrResult({
-      vehicle_number: plate,
-      confidence: 98.5,
-      method_used: `PRESET_VALIDATION (${note})`
-    });
-    onPlateExtracted(plate, 98.5);
   };
 
   return (
@@ -350,141 +333,6 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
           </div>
         </div>
       )}
-
-      {/* Quick Test Demo Scenarios (Crucial for Instant PoC Demonstration) */}
-      <div className="mt-3.5 pt-3 border-t border-slate-800/80">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase flex items-center space-x-1">
-            <Sparkles className="w-3 h-3 text-amber-400" />
-            <span>Test Plate Presets (PoC Demo)</span>
-          </span>
-          {onRunBatchTest && (
-            <button
-              onClick={onRunBatchTest}
-              disabled={isBatchRunning}
-              className="flex items-center space-x-1 px-2 py-0.5 rounded-md bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-[10px] font-bold text-amber-300 transition active:scale-95 disabled:opacity-50"
-              title="Execute all 8 edge cases simultaneously and stream real-time results into Supabase"
-            >
-              <Zap className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />
-              <span>{isBatchRunning ? 'Running Suite...' : '⚡ Run All 8 Scenarios'}</span>
-            </button>
-          )}
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {/* Preset 1 */}
-          <button
-            onClick={() => handleQuickPreset('AP31TJ9988', 'Active RC & Valid PUC')}
-            className="px-2.5 py-1.5 rounded-lg bg-emerald-950/30 hover:bg-emerald-900/40 border border-emerald-800/40 text-left transition group"
-          >
-            <div className="text-[11px] font-mono font-bold text-emerald-400 flex items-center justify-between">
-              <span>AP31TJ9988</span>
-              <span className="text-[9px] px-1 bg-emerald-500/20 rounded">PASS</span>
-            </div>
-            <div className="text-[10px] text-slate-400 truncate">
-              Tata Logistics • Valid PUC
-            </div>
-          </button>
-
-          {/* Preset 2 */}
-          <button
-            onClick={() => handleQuickPreset('MH12AB5678', 'Expired PUC')}
-            className="px-2.5 py-1.5 rounded-lg bg-rose-950/30 hover:bg-rose-900/40 border border-rose-800/40 text-left transition group"
-          >
-            <div className="text-[11px] font-mono font-bold text-rose-400 flex items-center justify-between">
-              <span>MH12AB5678</span>
-              <span className="text-[9px] px-1 bg-rose-500/20 rounded">DENY</span>
-            </div>
-            <div className="text-[10px] text-slate-400 truncate">
-              Jindal Trans • Expired PUC
-            </div>
-          </button>
-
-          {/* Preset 3 */}
-          <button
-            onClick={() => handleQuickPreset('AP31XX0001', 'Suspended RC Status')}
-            className="px-2.5 py-1.5 rounded-lg bg-amber-950/30 hover:bg-amber-900/40 border border-amber-800/40 text-left transition group"
-          >
-            <div className="text-[11px] font-mono font-bold text-amber-400 flex items-center justify-between">
-              <span>AP31XX0001</span>
-              <span className="text-[9px] px-1 bg-amber-500/20 rounded">DENY</span>
-            </div>
-            <div className="text-[10px] text-slate-400 truncate">
-              Vizag Coastal • Suspended RC
-            </div>
-          </button>
-
-          {/* Preset 4 */}
-          <button
-            onClick={() => handleQuickPreset('AP31CG7744', 'Coastal Slag Carrier')}
-            className="px-2.5 py-1.5 rounded-lg bg-emerald-950/30 hover:bg-emerald-900/40 border border-emerald-800/40 text-left transition group"
-          >
-            <div className="text-[11px] font-mono font-bold text-emerald-400 flex items-center justify-between">
-              <span>AP31CG7744</span>
-              <span className="text-[9px] px-1 bg-emerald-500/20 rounded">PASS</span>
-            </div>
-            <div className="text-[10px] text-slate-400 truncate">
-              Coastal Slag • Valid
-            </div>
-          </button>
-
-          {/* Preset 5 */}
-          <button
-            onClick={() => handleQuickPreset('AP31AP8821', 'Apex Minerals Dumper')}
-            className="px-2.5 py-1.5 rounded-lg bg-emerald-950/30 hover:bg-emerald-900/40 border border-emerald-800/40 text-left transition group"
-          >
-            <div className="text-[11px] font-mono font-bold text-emerald-400 flex items-center justify-between">
-              <span>AP31AP8821</span>
-              <span className="text-[9px] px-1 bg-emerald-500/20 rounded">PASS</span>
-            </div>
-            <div className="text-[10px] text-slate-400 truncate">
-              Apex Ore • Valid PUC
-            </div>
-          </button>
-
-          {/* Preset 6 */}
-          <button
-            onClick={() => handleQuickPreset('DL01AB1234', 'Compounded Multi-Violation')}
-            className="px-2.5 py-1.5 rounded-lg bg-rose-950/30 hover:bg-rose-900/40 border border-rose-800/40 text-left transition group"
-          >
-            <div className="text-[11px] font-mono font-bold text-rose-400 flex items-center justify-between">
-              <span>DL01AB1234</span>
-              <span className="text-[9px] px-1 bg-rose-500/20 rounded">DENY</span>
-            </div>
-            <div className="text-[10px] text-slate-400 truncate">
-              Triple Violation (RC+PUC)
-            </div>
-          </button>
-
-          {/* Preset 7 */}
-          <button
-            onClick={() => handleQuickPreset('OD02NF0000', 'RTO Record 404')}
-            className="px-2.5 py-1.5 rounded-lg bg-rose-950/30 hover:bg-rose-900/40 border border-rose-800/40 text-left transition group"
-          >
-            <div className="text-[11px] font-mono font-bold text-rose-400 flex items-center justify-between">
-              <span>OD02NF0000</span>
-              <span className="text-[9px] px-1 bg-rose-500/20 rounded">404</span>
-            </div>
-            <div className="text-[10px] text-slate-400 truncate">
-              Missing RTO Record
-            </div>
-          </button>
-
-          {/* Preset 8 */}
-          <button
-            onClick={() => handleQuickPreset('KA05BL9999', 'Blacklisted RC')}
-            className="px-2.5 py-1.5 rounded-lg bg-rose-950/30 hover:bg-rose-900/40 border border-rose-800/40 text-left transition group"
-          >
-            <div className="text-[11px] font-mono font-bold text-rose-400 flex items-center justify-between">
-              <span>KA05BL9999</span>
-              <span className="text-[9px] px-1 bg-rose-500/20 rounded">DENY</span>
-            </div>
-            <div className="text-[10px] text-slate-400 truncate">
-              Revoked / Stolen Flag
-            </div>
-          </button>
-        </div>
-      </div>
     </div>
   );
 };

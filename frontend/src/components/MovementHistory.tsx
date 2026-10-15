@@ -131,7 +131,7 @@ export const MovementHistory: React.FC<MovementHistoryProps> = ({
               <th className="py-2.5 px-3">Type</th>
               <th className="py-2.5 px-3">Vendor</th>
               <th className="py-2.5 px-3">Compliance</th>
-              <th className="py-2.5 px-3">RC / PUC</th>
+              <th className="py-2.5 px-3">RC / PUC / Permit</th>
               <th className="py-2.5 px-3">Guard</th>
               <th className="py-2.5 px-3">Audit Details</th>
             </tr>
@@ -200,20 +200,48 @@ export const MovementHistory: React.FC<MovementHistoryProps> = ({
                     {getStatusBadge(m.compliance_status)}
                   </td>
 
-                  {/* RC / PUC details */}
+                  {/* RC / PUC / Permit details */}
                   <td className="py-2.5 px-3 text-[11px] whitespace-nowrap">
-                    <span
-                      className={`font-semibold ${
-                        m.rc_status?.toUpperCase() === 'ACTIVE'
-                          ? 'text-emerald-400'
-                          : 'text-rose-400'
-                      }`}
-                    >
-                      RC: {m.rc_status || 'N/A'}
-                    </span>
-                    <span className="block text-[10px] text-slate-400 font-mono">
-                      PUC: {m.puc_valid_until ? m.puc_valid_until : 'Missing'}
-                    </span>
+                    <div className="flex items-center space-x-1.5">
+                      <span
+                        className={`font-semibold ${
+                          m.rc_status?.toUpperCase() === 'ACTIVE'
+                            ? 'text-emerald-400'
+                            : 'text-rose-400'
+                        }`}
+                      >
+                        RC: {m.rc_status || 'N/A'}
+                      </span>
+                      <span className="text-slate-600">•</span>
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        PUC: {m.puc_valid_until ? m.puc_valid_until : 'Missing'}
+                      </span>
+                    </div>
+                    <div className="mt-0.5 flex items-center space-x-1 text-[10px]">
+                      <span className="text-slate-500 font-medium">Permit:</span>
+                      {m.permit_status === 'VALID' ? (
+                        <span className="px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-300 font-mono border border-emerald-500/20 font-semibold">
+                          VALID {m.national_permit_number ? '(NP)' : '(Local)'}
+                        </span>
+                      ) : m.permit_status === 'NOT_APPLICABLE' ? (
+                        <span className="px-1.5 py-0.2 rounded bg-slate-500/10 text-slate-400 font-mono border border-slate-500/20">
+                          N/A
+                        </span>
+                      ) : (
+                        <span className="px-1.5 py-0.2 rounded bg-rose-500/10 text-rose-300 font-mono border border-rose-500/20 font-semibold">
+                          {m.permit_status || 'EXPIRED'}
+                        </span>
+                      )}
+                      {m.national_permit_number ? (
+                        <span className="text-slate-400 font-mono truncate max-w-[80px]" title={m.national_permit_number}>
+                          {m.national_permit_number}
+                        </span>
+                      ) : m.permit_number ? (
+                        <span className="text-slate-400 font-mono truncate max-w-[80px]" title={m.permit_number}>
+                          {m.permit_number}
+                        </span>
+                      ) : null}
+                    </div>
                   </td>
 
                   {/* Guard */}

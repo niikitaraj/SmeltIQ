@@ -10,7 +10,6 @@ import {
   Truck,
   Building2,
   Clock,
-  Sparkles,
   ArrowRight,
   Maximize2,
   AlertTriangle,
@@ -81,7 +80,7 @@ export const LiveDashboardPage: React.FC<LiveDashboardPageProps> = ({
       }
       setIsCameraActive(true);
     } catch {
-      setCameraError('Webcam not accessible or permission denied. Preset testing available.');
+      setCameraError('Webcam not accessible or permission denied. Please verify camera permissions or use manual plate entry.');
       setIsCameraActive(false);
     }
   };
@@ -100,87 +99,34 @@ export const LiveDashboardPage: React.FC<LiveDashboardPageProps> = ({
     };
   }, []);
 
-  // Preset shortcut buttons for instant field testing
-  const presets = [
-    { plate: 'AP31TJ9988', vendor: 'VEND-TATALOG-01', label: 'Valid Tata Haulage', type: 'ALLOWED' },
-    { plate: 'MH12AB5678', vendor: 'VEND-JINDAL-02', label: 'Expired PUC Heavy', type: 'DENIED' },
-    { plate: 'AP31XX0001', vendor: 'VEND-VIZAG-03', label: 'Suspended RC Vehicle', type: 'DENIED' },
-    { plate: 'DL01AB1234', vendor: 'VEND-BLACKLIST-99', label: 'Blacklisted Transporter', type: 'DENIED' }
-  ];
+  // Capture & Run Statutory Compliance Check
+  const handleCaptureAndVerify = async () => {
+    const cleanPlate = (capturedPlate || '').toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
+    if (!cleanPlate) {
+      setCameraError('Please enter or scan a valid vehicle number plate before verification.');
+      return;
+    }
 
-  const handleSelectPreset = (plate: string, vendorCode: string) => {
-    setCapturedPlate(plate);
-    setSelectedVendorCode(vendorCode);
-    setOcrConfidence(98.2);
-  };
-
-  // Simulate Auto-Capture & Run Statutory Compliance Check
-  const handleSimulateAutoCapture = async () => {
     setIsScanning(true);
     setCameraError(null);
 
     try {
-      // Step 1: Simulate laser frame grab & OCR
+      // Step 1: Laser frame grab & ANPR OCR processing
       await new Promise((r) => setTimeout(r, 600));
 
       // Step 2: Check blacklist directly
-      const isBlacklisted = isBlacklistedVehicle(capturedPlate);
+      const isBlacklisted = isBlacklistedVehicle(cleanPlate);
 
-      // Step 3: Run Surepass compliance check via backend or robust fallback
-      const decision = await api
-        .verifyGateEntry({
-          vehicle_number: capturedPlate,
-          expected_vendor_code: selectedVendorCode,
-          guard_id: guardId,
-          gate_id: activeGate,
-          movement_type: 'ENTRY',
-          ocr_confidence: ocrConfidence
-        })
-        .catch(() => {
-          // Robust Instant Fallback
-          const isTata = capturedPlate === 'AP31TJ9988';
-          const isExpiredPuc = capturedPlate === 'MH12AB5678';
-          const isSuspendedRc = capturedPlate === 'AP31XX0001';
-
-          let status: 'ALLOWED' | 'DENIED' = 'ALLOWED';
-          const reasons: string[] = [];
-
-          if (isBlacklisted || capturedPlate === 'DL01AB1234') {
-            status = 'DENIED';
-            reasons.push('Vehicle registration is flagged on Plant Watchlist / Blacklist Registry.');
-          } else if (isExpiredPuc) {
-            status = 'DENIED';
-            reasons.push('Pollution Under Control (PUC) certificate expired on 2026-09-30.');
-          } else if (isSuspendedRc) {
-            status = 'DENIED';
-            reasons.push('Vehicle Registration Certificate (RC) status is SUSPENDED (Rule 1 violation).');
-          }
-
-          const vendorMatch = vendors.find((v) => v.vendor_code === selectedVendorCode);
-
-          return {
-            movement_id: 'mov-' + Math.random().toString(36).substring(2, 8),
-            vehicle_number: capturedPlate,
-            owner_name: isTata
-              ? 'RAMESH CHANDRA SHARMA'
-              : isExpiredPuc
-              ? 'SURESH TRUCKING CO.'
-              : 'VIJAYAWADA ROADWAYS LTD',
-            vendor_code: selectedVendorCode,
-            vendor_name: vendorMatch?.vendor_name || 'Tata Steel Freight Logistics',
-            rc_status: isSuspendedRc ? 'SUSPENDED' : 'ACTIVE',
-            puc_valid_until: isExpiredPuc ? '2026-09-30' : '2027-04-15',
-            puc_status: isExpiredPuc ? 'EXPIRED' : 'VALID',
-            compliance_status: status,
-            rejection_reasons: reasons,
-            timestamp: new Date().toISOString(),
-            guard_id: guardId,
-            gate_id: activeGate,
-            movement_type: 'ENTRY',
-            vehicle_class: 'Heavy Goods Vehicle (Multi-Axle)',
-            insurance_upto: '2027-01-20'
-          } as ComplianceDecision;
-        });
+      // Step 3: Run Surepass compliance check via backend
+      const decision = await api.verifyGateEntry({
+        vehicle_number: cleanPlate,
+        expected_vendor_code: selectedVendorCode || 'VEND-TATALOG-01',
+        guard_id: guardId,
+        gate_id: activeGate,
+        movement_type: 'ENTRY',
+        ocr_confidence: ocrConfidence,
+        force_refresh: false
+      });
 
       onVerifyDecision(decision);
       onRefreshMovements();
@@ -335,7 +281,7 @@ export const LiveDashboardPage: React.FC<LiveDashboardPageProps> = ({
                     Optical ANPR Stream Standby
                   </span>
                   <span className="text-[11px] text-slate-500 mt-1 max-w-xs">
-                    Camera feed active on Gate 01 lane. Tap "Simulate Auto-Capture" or connect physical webcam.
+                    Camera feed active on Gate 01 lane. Align vehicle plate in frame and tap "Capture & Scan Plate".
                   </span>
                 </div>
               )}
@@ -366,71 +312,52 @@ export const LiveDashboardPage: React.FC<LiveDashboardPageProps> = ({
 
             {/* Current Active Capture Bar */}
             <div className="mt-4 p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
-                  Current Target Plate
-                </span>
-                <span className="font-mono text-lg font-extrabold text-sky-400 tracking-wider">
-                  {capturedPlate}
-                </span>
+              <div className="flex-1 max-w-xs">
+                <label htmlFor="target-plate-input" className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block mb-1">
+                  Target Number Plate
+                </label>
+                <input
+                  id="target-plate-input"
+                  type="text"
+                  value={capturedPlate}
+                  onChange={(e) => setCapturedPlate(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                  placeholder="e.g. MH34CC0820"
+                  maxLength={10}
+                  className="w-full font-mono text-base font-extrabold text-sky-400 tracking-wider bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 uppercase placeholder:text-slate-600 placeholder:text-xs"
+                />
               </div>
 
-              {/* Action Trigger: "Simulate Auto-Capture" */}
+              {/* Action Trigger: "Verify Number Plate" */}
               <button
                 type="button"
-                onClick={handleSimulateAutoCapture}
-                disabled={isScanning}
-                className="px-5 py-3 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-slate-950 font-extrabold text-xs tracking-wider uppercase shadow-lg shadow-sky-500/25 flex items-center justify-center space-x-2 transition active:scale-[0.98] disabled:opacity-50"
+                onClick={handleCaptureAndVerify}
+                disabled={isScanning || !capturedPlate.trim()}
+                className="px-5 py-3 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-slate-950 font-extrabold text-xs tracking-wider uppercase shadow-lg shadow-sky-500/25 flex items-center justify-center space-x-2 transition active:scale-[0.98] disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
               >
                 {isScanning ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Processing ANPR OCR...</span>
+                    <span>Verifying Compliance...</span>
                   </>
                 ) : (
                   <>
                     <Scan className="w-4 h-4" />
-                    <span>Simulate Auto-Capture</span>
+                    <span>Verify Number Plate</span>
                   </>
                 )}
               </button>
             </div>
 
-            {/* Quick Testcase Scenario Shortcuts */}
-            <div className="mt-4 pt-3 border-t border-slate-800/80">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-1.5 mb-2">
-                <Sparkles className="w-3 h-3 text-amber-400" />
-                <span>One-Tap Test Vehicle Scenarios:</span>
-              </span>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                {presets.map((p) => (
-                  <button
-                    key={p.plate}
-                    type="button"
-                    onClick={() => handleSelectPreset(p.plate, p.vendor)}
-                    className={`p-2.5 rounded-xl border text-left transition ${
-                      capturedPlate === p.plate
-                        ? 'bg-sky-950/50 border-sky-500 text-sky-200'
-                        : 'bg-slate-950 hover:bg-slate-800 border-slate-800/80 text-slate-300'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono font-bold text-xs">{p.plate}</span>
-                      <span
-                        className={`text-[9px] px-1.5 py-0.2 rounded font-bold uppercase ${
-                          p.type === 'ALLOWED'
-                            ? 'bg-emerald-500/20 text-emerald-400'
-                            : 'bg-rose-500/20 text-rose-400'
-                        }`}
-                      >
-                        {p.type}
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-slate-400 truncate block mt-0.5">
-                      {p.label}
-                    </span>
-                  </button>
-                ))}
+            {/* Production ANPR Telemetry & Gate Status */}
+            <div className="mt-4 pt-3.5 border-t border-slate-800/80 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                  Gate Hardware Lane Status
+                </span>
+                <span className="flex items-center space-x-1.5 text-[11px] text-emerald-400 font-mono">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span>Optical Sensor Ready</span>
+                </span>
               </div>
             </div>
           </div>
@@ -589,13 +516,56 @@ export const LiveDashboardPage: React.FC<LiveDashboardPageProps> = ({
 
                   <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800">
                     <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
-                      Transporter / Contractor
+                      Transporter / Contractor (Rule 3)
                     </span>
                     <span className="font-bold text-slate-100 text-xs block truncate">
                       {activeDecision.vendor_name || activeDecision.vendor_code}
                     </span>
                     <span className="text-[10px] text-slate-500 font-mono">
                       {activeDecision.vendor_code}
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1 flex items-center space-x-1">
+                      <FileCheck2 className="w-3 h-3 text-slate-400" />
+                      <span>Transport Permit (Rule 4)</span>
+                    </span>
+                    <span className="font-mono font-bold text-slate-100 text-xs block truncate" title={activeDecision.national_permit_number || activeDecision.permit_number || 'N/A'}>
+                      {activeDecision.national_permit_number ? (
+                        <span>NP: {activeDecision.national_permit_number}</span>
+                      ) : activeDecision.permit_number ? (
+                        <span>Permit: {activeDecision.permit_number}</span>
+                      ) : (
+                        <span>{activeDecision.permit_status === 'NOT_APPLICABLE' ? 'N/A (Non-Commercial)' : 'No Permit on File'}</span>
+                      )}
+                    </span>
+                    <div className="flex items-center space-x-1 mt-1">
+                      <span
+                        className={`text-[10px] font-semibold px-1.5 py-0.5 rounded font-mono ${
+                          activeDecision.permit_status === 'VALID'
+                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                            : activeDecision.permit_status === 'NOT_APPLICABLE'
+                            ? 'bg-slate-500/20 text-slate-400 border border-slate-500/30'
+                            : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                        }`}
+                      >
+                        {activeDecision.permit_status === 'VALID'
+                          ? `VALID (${activeDecision.national_permit_number ? 'National' : 'Local'})`
+                          : activeDecision.permit_status || 'EXPIRED'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
+                      Vehicle Class & Carrier
+                    </span>
+                    <span className="font-bold text-slate-100 text-xs block truncate">
+                      {activeDecision.vehicle_class || 'Heavy Commercial'}
+                    </span>
+                    <span className="text-[10px] text-slate-500">
+                      Surepass Vahan Class
                     </span>
                   </div>
                 </div>

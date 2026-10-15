@@ -24,6 +24,7 @@ class ComplianceVerifyRequest(BaseModel):
     movement_type: Literal["ENTRY", "EXIT"] = Field("ENTRY", description="Direction of movement")
     ocr_confidence: Optional[float] = Field(None, description="Confidence percentage from OCR step")
     simulate_scenario: Optional[str] = Field(None, description="Optional dummy simulation: 'ALLOWED', 'EXPIRED_PUC', 'SUSPENDED_RC', 'NOT_FOUND', 'INACTIVE'")
+    force_refresh: Optional[bool] = Field(False, description="Bypass local database cache and query Surepass Sandbox API directly")
 
     @field_validator("vehicle_number")
     @classmethod
@@ -43,6 +44,13 @@ class SurepassParsedData(BaseModel):
     vehicle_class: Optional[str] = None
     insurance_upto: Optional[str] = None
     maker_model: Optional[str] = None
+    permit_number: Optional[str] = None
+    permit_type: Optional[str] = None
+    permit_valid_upto: Optional[str] = None
+    permit_issue_date: Optional[str] = None
+    national_permit_number: Optional[str] = None
+    national_permit_upto: Optional[str] = None
+    national_permit_issued_by: Optional[str] = None
     raw_response: Dict[str, Any] = Field(default_factory=dict)
 
 
@@ -55,6 +63,12 @@ class ComplianceDecision(BaseModel):
     rc_status: str
     puc_valid_until: Optional[str] = None
     puc_status: Literal["VALID", "EXPIRED", "NOT_AVAILABLE"]
+    permit_number: Optional[str] = None
+    permit_type: Optional[str] = None
+    permit_valid_until: Optional[str] = None
+    permit_status: Literal["VALID", "EXPIRED", "NOT_AVAILABLE", "NOT_APPLICABLE"] = "NOT_AVAILABLE"
+    national_permit_number: Optional[str] = None
+    national_permit_upto: Optional[str] = None
     compliance_status: Literal["ALLOWED", "DENIED", "OVERRIDDEN"]
     rejection_reasons: List[str] = Field(default_factory=list)
     timestamp: datetime = Field(default_factory=datetime.utcnow)
@@ -64,6 +78,8 @@ class ComplianceDecision(BaseModel):
     vehicle_class: Optional[str] = None
     insurance_upto: Optional[str] = None
     raw_surepass_payload: Dict[str, Any] = Field(default_factory=dict)
+    is_cached: bool = Field(False, description="True if statutory details were loaded from Supabase database cache (0 API cost)")
+    data_source: str = Field("SUREPASS_SANDBOX", description="Data provenance: 'SUPABASE_CACHE' or 'SUREPASS_SANDBOX'")
 
 
 class GuardOverrideRequest(BaseModel):
@@ -106,6 +122,12 @@ class MovementLogItem(BaseModel):
     vendor_name: Optional[str] = None
     rc_status: Optional[str] = None
     puc_valid_until: Optional[str] = None
+    permit_number: Optional[str] = None
+    permit_type: Optional[str] = None
+    permit_valid_until: Optional[str] = None
+    permit_status: Optional[str] = None
+    national_permit_number: Optional[str] = None
+    national_permit_upto: Optional[str] = None
     compliance_status: str
     rejection_reasons: List[str] = Field(default_factory=list)
     guard_id: str

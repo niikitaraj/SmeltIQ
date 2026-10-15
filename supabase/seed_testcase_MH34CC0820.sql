@@ -1,0 +1,106 @@
+-- ==============================================================================
+-- SmeltIQ Verified Test Case Seed: MH34CC0820 (Omesh Tikaram Bansod)
+-- Evaluation: DENIED (PUC Certificate expired on 2026-07-03)
+-- ==============================================================================
+
+-- Ensure optional columns exist if not already present
+ALTER TABLE public.gate_movements 
+ADD COLUMN IF NOT EXISTS insurance_valid_until DATE,
+ADD COLUMN IF NOT EXISTS vehicle_class VARCHAR(100);
+
+-- Seed Real Test Record: MH34CC0820 (Omesh Tikaram Bansod)
+INSERT INTO public.gate_movements (
+    gate_id,
+    movement_type,
+    vehicle_number,
+    ocr_confidence,
+    owner_name,
+    rc_status,
+    puc_valid_until,
+    insurance_valid_until,
+    vehicle_class,
+    compliance_status,
+    rejection_reasons,
+    raw_surepass_payload,
+    guard_id,
+    created_at
+) VALUES (
+    'GATE-01',
+    'ENTRY',
+    'MH34CC0820',
+    98.50,
+    'Omesh Tikaram Bansod',
+    'ACTIVE',
+    '2026-07-03',
+    '2027-07-18',
+    'M-Cycle/Scooter(2WN)',
+    'DENIED', -- Evaluated DENIED because PUC expired on 2026-07-03
+    ARRAY['PUC Certificate expired on 2026-07-03'],
+    '{
+      "data": {
+        "client_id": "rc_v2_fUqjkYdnlAxCpvrWUfei",
+        "rc_number": "MH34CC0820",
+        "fit_up_to": "2037-08-12",
+        "registration_date": "2022-08-13",
+        "owner_name": "Omesh Tikaram Bansod",
+        "father_name": "",
+        "present_address": "WARD NO. 07, NEAR DATTA MANDIR, AT.POST- TALODHI (BA), TAH- NAGBHID, Chandrapur, Maharashtra, 441221",
+        "permanent_address": "WARD NO. 07, NEAR DATTA MANDIR, AT.POST- TALODHI (BA), TAH- NAGBHID, Chandrapur, Maharashtra, 441221",
+        "mobile_number": "",
+        "vehicle_category": "2WN",
+        "vehicle_chasi_number": "MD626CG56N1G08709",
+        "vehicle_engine_number": "EG5GN1602092",
+        "maker_description": "TVS MOTOR COMPANY LTD",
+        "maker_model": "TVS JUPITER ZX INTELLIGO",
+        "body_type": "2 WHEELER",
+        "fuel_type": "PETROL",
+        "color": "C BRONZE",
+        "norms_type": "BHARAT STAGE VI",
+        "financer": "",
+        "financed": false,
+        "insurance_company": "GoDigit General Insurance Ltd.",
+        "insurance_policy_number": "D070264768",
+        "insurance_upto": "2027-07-18",
+        "manufacturing_date": "7/2022",
+        "manufacturing_date_formatted": "2022-07",
+        "registered_at": "RTO CHANDRAPUR, Maharashtra",
+        "latest_by": "2026-04-07",
+        "less_info": true,
+        "tax_upto": null,
+        "tax_paid_upto": "2037-08-12",
+        "cubic_capacity": "109.70",
+        "vehicle_gross_weight": "237",
+        "no_cylinders": "1",
+        "seat_capacity": "2",
+        "sleeper_capacity": "0",
+        "standing_capacity": "0",
+        "wheelbase": "1275",
+        "unladen_weight": "107",
+        "vehicle_category_description": "M-Cycle/Scooter(2WN)",
+        "pucc_number": "MH01200830056367",
+        "pucc_upto": "2026-07-03",
+        "permit_number": "0",
+        "permit_issue_date": null,
+        "permit_valid_from": null,
+        "permit_valid_upto": null,
+        "permit_type": "",
+        "national_permit_number": "",
+        "national_permit_upto": null,
+        "national_permit_issued_by": "",
+        "non_use_status": null,
+        "non_use_from": null,
+        "non_use_to": null,
+        "blacklist_status": "",
+        "noc_details": "",
+        "owner_number": "1",
+        "rc_status": "ACTIVE",
+        "rto_code": null
+      },
+      "status_code": 200,
+      "success": true,
+      "message": null,
+      "message_code": "success"
+    }'::jsonb,
+    'GUARD-TEST-01',
+    NOW()
+);

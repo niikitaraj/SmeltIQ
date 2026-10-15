@@ -166,6 +166,43 @@ FALLBACK_MOVEMENTS: List[Dict[str, Any]] = [
         "supervisor_code": None,
         "overridden_at": None,
         "created_at": (datetime.utcnow() - timedelta(hours=1, minutes=45)).isoformat()
+    },
+    {
+        "id": "c5f34e88-6612-4d2b-98a7-33f7c18a9920",
+        "gate_id": "GATE-01",
+        "movement_type": "ENTRY",
+        "vehicle_number": "MH34CC0820",
+        "ocr_confidence": 98.5,
+        "owner_name": "OMESH TIKARAM BANSOD",
+        "vendor_id": "e4a2c58e-5b3e-4b68-9a99-f41858349001",
+        "vendor_code": "VEND-TATALOG-01",
+        "vendor_name": "Tata Steel Supply Chain & Freight Logistics",
+        "rc_status": "ACTIVE",
+        "puc_valid_until": "2026-07-03",
+        "insurance_valid_until": "2027-07-18",
+        "vehicle_class": "M-Cycle/Scooter(2WN)",
+        "compliance_status": "DENIED",
+        "rejection_reasons": ["PUC Certificate expired on 2026-07-03"],
+        "raw_surepass_payload": {
+            "status_code": 200,
+            "success": True,
+            "data": {
+                "client_id": "rc_v2_fUqjkYdnlAxCpvrWUfei",
+                "rc_number": "MH34CC0820",
+                "owner_name": "Omesh Tikaram Bansod",
+                "rc_status": "ACTIVE",
+                "pucc_upto": "2026-07-03",
+                "insurance_upto": "2027-07-18",
+                "vehicle_category": "2WN",
+                "vehicle_category_description": "M-Cycle/Scooter(2WN)",
+                "maker_model": "TVS JUPITER ZX INTELLIGO"
+            }
+        },
+        "guard_id": "GUARD-8812",
+        "override_reason": None,
+        "supervisor_code": None,
+        "overridden_at": None,
+        "created_at": (datetime.utcnow() - timedelta(hours=2)).isoformat()
     }
 ]
 
@@ -174,6 +211,7 @@ class DatabaseManager:
     def __init__(self):
         self._supabase: Optional[Client] = None
         self._is_connected = False
+        self._vehicle_hot_cache: Dict[str, Dict[str, Any]] = {}
         self._init_client()
 
     def _init_client(self):
@@ -228,11 +266,82 @@ class DatabaseManager:
                 return v
         return None
 
+    async def get_cached_vehicle_data(self, vehicle_number: str, force_refresh: bool = False) -> Optional[Dict[str, Any]]:
+        """
+        High-Efficiency Vehicle Statutory Details Cache:
+        1. Evaluates in-memory hot cache (< 1ms latency, 0 network trips).
+        2. Evaluates Supabase PostgreSQL gate_movements indexed table (by vehicle_number, created_at DESC).
+        3. Returns the most recent statutory record if found (0 external API cost).
+        4. If force_refresh=True, purges the hot cache and forces Supabase bypass to fetch live data.
+        """
+        clean_plate = "".join(ch for ch in vehicle_number.upper() if ch.isalnum())
+        if not clean_plate:
+            return None
+
+        if force_refresh:
+            self._vehicle_hot_cache.pop(clean_plate, None)
+            logger.info("Bypassing vehicle cache (force_refresh=True) for %s", clean_plate)
+            return None
+
+        # Level 1: Hot In-Memory Cache (< 1 ms latency)
+        if clean_plate in self._vehicle_hot_cache:
+            record = self._vehicle_hot_cache[clean_plate]
+            if record.get("rc_status") or record.get("raw_surepass_payload"):
+                logger.info(
+                    "[CACHE HIT: Level 1 Hot Memory Cache] Found statutory record for %s (<1ms, Status: %s, PUC: %s, 0 API Calls)",
+                    clean_plate, record.get("rc_status"), record.get("puc_valid_until")
+                )
+                return record
+
+        # Level 2: Supabase PostgreSQL gate_movements Table
+        if self._is_connected and self._supabase:
+            try:
+                import time
+                t0 = time.perf_counter()
+                res = self._supabase.table("gate_movements") \
+                    .select("*") \
+                    .eq("vehicle_number", clean_plate) \
+                    .order("created_at", desc=True) \
+                    .limit(1) \
+                    .execute()
+                latency_ms = (time.perf_counter() - t0) * 1000
+
+                if res.data and len(res.data) > 0:
+                    record = res.data[0]
+                    # Verify record contains statutory data
+                    if record.get("rc_status") or record.get("raw_surepass_payload"):
+                        logger.info(
+                            "[CACHE HIT: Level 2 Supabase PostgreSQL] Found statutory record for %s in %.2f ms (Status: %s, PUC: %s, 0 API Calls)",
+                            clean_plate, latency_ms, record.get("rc_status"), record.get("puc_valid_until")
+                        )
+                        # Warm Level 1 hot cache
+                        self._vehicle_hot_cache[clean_plate] = record
+                        return record
+            except Exception as e:
+                logger.error("Error querying Supabase for cached vehicle %s: %s", clean_plate, e)
+
+        # Level 3: Session Fallback Seed Cache
+        for m in FALLBACK_MOVEMENTS:
+            m_plate = "".join(ch for ch in m.get("vehicle_number", "").upper() if ch.isalnum())
+            if m_plate == clean_plate:
+                if m.get("rc_status") or m.get("raw_surepass_payload"):
+                    logger.info("[CACHE HIT: Level 3 Session Cache] Found statutory record for %s", clean_plate)
+                    self._vehicle_hot_cache[clean_plate] = m
+                    return m
+
+        logger.info("[CACHE MISS] Vehicle %s not found in Supabase PostgreSQL or hot cache. External Surepass API call required.", clean_plate)
+        return None
+
     async def create_gate_movement(self, record: Dict[str, Any]) -> Dict[str, Any]:
+        record["_is_runtime_verified"] = True
         if "id" not in record or not record["id"]:
             record["id"] = str(uuid.uuid4())
         if "created_at" not in record:
             record["created_at"] = datetime.utcnow().isoformat()
+
+        clean_plate = "".join(ch for ch in record.get("vehicle_number", "").upper() if ch.isalnum())
+        if clean_plate:
+            record["vehicle_number"] = clean_plate
 
         if self._is_connected and self._supabase:
             try:
@@ -253,14 +362,56 @@ class DatabaseManager:
                     "guard_id": record.get("guard_id"),
                     "created_at": record["created_at"]
                 }
-                res = self._supabase.table("gate_movements").insert(db_record).execute()
-                if res.data and len(res.data) > 0:
-                    return res.data[0]
+                if record.get("insurance_valid_until"):
+                    db_record["insurance_valid_until"] = record.get("insurance_valid_until")
+                if record.get("vehicle_class"):
+                    db_record["vehicle_class"] = record.get("vehicle_class")
+                if record.get("permit_number"):
+                    db_record["permit_number"] = record.get("permit_number")
+                if record.get("permit_type"):
+                    db_record["permit_type"] = record.get("permit_type")
+                if record.get("permit_valid_until"):
+                    db_record["permit_valid_until"] = record.get("permit_valid_until")
+                if record.get("permit_status"):
+                    db_record["permit_status"] = record.get("permit_status")
+                if record.get("national_permit_number"):
+                    db_record["national_permit_number"] = record.get("national_permit_number")
+                if record.get("national_permit_upto"):
+                    db_record["national_permit_upto"] = record.get("national_permit_upto")
+                if record.get("national_permit_issued_by"):
+                    db_record["national_permit_issued_by"] = record.get("national_permit_issued_by")
+
+                try:
+                    res = self._supabase.table("gate_movements").insert(db_record).execute()
+                    if res.data and len(res.data) > 0:
+                        saved_record = res.data[0]
+                        FALLBACK_MOVEMENTS.insert(0, record)
+                        if clean_plate:
+                            self._vehicle_hot_cache[clean_plate] = record
+                        return saved_record
+                except Exception as col_err:
+                    logger.warning("Insert with extended columns failed (%s). Retrying with base columns.", col_err)
+                    extended_cols = [
+                        "insurance_valid_until", "vehicle_class",
+                        "permit_number", "permit_type", "permit_valid_until", "permit_status",
+                        "national_permit_number", "national_permit_upto", "national_permit_issued_by"
+                    ]
+                    base_record = {k: v for k, v in db_record.items() if k not in extended_cols}
+                    res = self._supabase.table("gate_movements").insert(base_record).execute()
+                    if res.data and len(res.data) > 0:
+                        saved_record = res.data[0]
+                        FALLBACK_MOVEMENTS.insert(0, record)
+                        if clean_plate:
+                            self._vehicle_hot_cache[clean_plate] = record
+                        return saved_record
+
             except Exception as e:
                 logger.error("Error inserting movement to Supabase: %s. Storing in fallback.", e)
 
-        # Store in in-memory list
+        # Store in in-memory list & hot cache
         FALLBACK_MOVEMENTS.insert(0, record)
+        if clean_plate:
+            self._vehicle_hot_cache[clean_plate] = record
         return record
 
     async def override_gate_movement(
@@ -283,6 +434,9 @@ class DatabaseManager:
                 }
                 res = self._supabase.table("gate_movements").update(update_payload).eq("id", movement_id).execute()
                 if res.data and len(res.data) > 0:
+                    v_num = res.data[0].get("vehicle_number")
+                    if v_num and v_num in self._vehicle_hot_cache:
+                        self._vehicle_hot_cache[v_num]["compliance_status"] = "OVERRIDDEN"
                     return res.data[0]
             except Exception as e:
                 logger.error("Error updating override on Supabase: %s", e)
@@ -295,6 +449,9 @@ class DatabaseManager:
                 item["supervisor_code"] = supervisor_code
                 item["guard_id"] = guard_id
                 item["overridden_at"] = now_iso
+                v_num = item.get("vehicle_number")
+                if v_num and v_num in self._vehicle_hot_cache:
+                    self._vehicle_hot_cache[v_num]["compliance_status"] = "OVERRIDDEN"
                 return item
 
         return None
