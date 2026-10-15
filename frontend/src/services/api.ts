@@ -10,7 +10,26 @@ import {
   AuthSession
 } from '../types';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+/**
+ * Dynamic Backend API URL Resolver:
+ * Supports VITE_API_BASE_URL, REACT_APP_API_BASE_URL, window runtime config, or relative /api/v1.
+ * Normalizes trailing slashes and ensures /api/v1 prefix is correctly attached.
+ */
+export function resolveApiBaseUrl(): string {
+  const envUrl = (
+    (typeof import.meta !== 'undefined' && import.meta.env && (import.meta.env.VITE_API_BASE_URL || import.meta.env.REACT_APP_API_BASE_URL)) ||
+    (typeof window !== 'undefined' && ((window as any).__SMELTIQ_API_URL__ || (window as any).VITE_API_BASE_URL || (window as any).REACT_APP_API_BASE_URL || localStorage.getItem('smeltiq_api_url'))) ||
+    ''
+  ).trim().replace(/\/+$/, '');
+
+  if (!envUrl) {
+    return '/api/v1';
+  }
+
+  return envUrl.endsWith('/api/v1') ? envUrl : `${envUrl}/api/v1`;
+}
+
+export const API_BASE = resolveApiBaseUrl();
 
 export const api = {
   // Fetch Logistics Vendors
@@ -184,7 +203,9 @@ export const api = {
 
   // Backend Health check
   async getHealth(): Promise<{ status: string; surepass_mode: string; supabase_connected: boolean }> {
-    const res = await fetch(`/health`);
+    const rootUrl = API_BASE.replace(/\/api\/v1\/?$/, '');
+    const healthUrl = rootUrl ? `${rootUrl}/health` : '/health';
+    const res = await fetch(healthUrl);
     if (!res.ok) {
       throw new Error(`Health check failed: ${res.statusText}`);
     }

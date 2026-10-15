@@ -12,14 +12,17 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     
-    # CORS
+    # CORS Allowed Origins
     CORS_ORIGINS: List[str] = [
+        "https://entryverification.netlify.app",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
-        "*"
+        "http://localhost:8000",
+        "http://127.0.0.1:8000"
     ]
+    CORS_ORIGIN_REGEX: Optional[str] = r"^https:\/\/([a-zA-Z0-9_-]+\.)?netlify\.app$"
     
     # Surepass Sandbox Configuration
     SUREPASS_ENV: str = "sandbox"
