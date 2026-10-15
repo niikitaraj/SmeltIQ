@@ -13,17 +13,8 @@ import {
   Lock,
   Sparkles
 } from 'lucide-react';
-import { Vendor, MovementLogItem, UserProfile } from '../types';
+import { Vendor, MovementLogItem, UserProfile, SupervisorDeskProps } from '../types';
 import { api } from '../services/api';
-
-interface SupervisorDeskProps {
-  isOpen: boolean;
-  onClose: () => void;
-  currentUser: UserProfile;
-  vendors: Vendor[];
-  onVendorsUpdate: (updatedVendors: Vendor[]) => void;
-  movements: MovementLogItem[];
-}
 
 export const SupervisorDesk: React.FC<SupervisorDeskProps> = ({
   isOpen,
@@ -31,6 +22,7 @@ export const SupervisorDesk: React.FC<SupervisorDeskProps> = ({
   currentUser,
   vendors,
   onVendorsUpdate,
+  onToggleVendor,
   movements
 }) => {
   const [updatingCode, setUpdatingCode] = useState<string | null>(null);
@@ -43,9 +35,14 @@ export const SupervisorDesk: React.FC<SupervisorDeskProps> = ({
     setSuccessMsg(null);
     try {
       const updated = await api.toggleVendorStatus(vendor.vendor_code, !vendor.is_active, 'SUPER88');
-      onVendorsUpdate(
-        vendors.map((v) => (v.vendor_code === updated.vendor_code ? updated : v))
-      );
+      if (onToggleVendor) {
+        onToggleVendor(vendor.vendor_code);
+      }
+      if (onVendorsUpdate) {
+        onVendorsUpdate(
+          vendors.map((v) => (v.vendor_code === updated.vendor_code ? updated : v))
+        );
+      }
       setSuccessMsg(
         `Vendor ${vendor.vendor_name} is now ${
           !vendor.is_active ? 'AUTHORIZED (ACTIVE)' : 'SUSPENDED / BLOCKED'
@@ -54,11 +51,16 @@ export const SupervisorDesk: React.FC<SupervisorDeskProps> = ({
     } catch {
       // Offline / standalone fallback
       const toggled = !vendor.is_active;
-      onVendorsUpdate(
-        vendors.map((v) =>
-          v.vendor_code === vendor.vendor_code ? { ...v, is_active: toggled } : v
-        )
-      );
+      if (onToggleVendor) {
+        onToggleVendor(vendor.vendor_code);
+      }
+      if (onVendorsUpdate) {
+        onVendorsUpdate(
+          vendors.map((v) =>
+            v.vendor_code === vendor.vendor_code ? { ...v, is_active: toggled } : v
+          )
+        );
+      }
       setSuccessMsg(
         `Local mode: ${vendor.vendor_name} changed to ${
           toggled ? 'ACTIVE' : 'SUSPENDED'
