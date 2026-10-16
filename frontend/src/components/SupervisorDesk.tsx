@@ -13,7 +13,7 @@ import {
   Lock,
   Sparkles
 } from 'lucide-react';
-import { Vendor, MovementLogItem, UserProfile, SupervisorDeskProps } from '../types';
+import { UserProfile } from '../types';
 import { SupervisorDeskProps, Vendor, MovementLogItem } from '../types';
 import { api } from '../services/api';
 
