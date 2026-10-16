@@ -120,20 +120,18 @@ export interface BlacklistEntry {
   flagged_by: string;
   flagged_date: string;
 }
-
 export interface OverrideModalProps {
-  isOpen: boolean;
-  decision: ComplianceDecision;
-  guardId: string;
+  isOpen: boolean; 
+  decision: ComplianceDecision; 
+  guardId: string; 
   onClose: () =&gt; void;
-  onSuccess?: (updatedDecision: ComplianceDecision) =&gt; void;
+  onSuccess?: (updatedDecision: ComplianceDecision) =&gt; void; 
 }
-
-export interface SupervisorDeskProps {
-  isOpen: boolean;
-  currentUser: UserProfile;
-  vendors: Vendor[];
-  movements: MovementLogItem[];
-  onClose: () =&gt; void;
+export interface SupervisorDeskProps { 
+  isOpen: boolean; 
+  currentUser: UserProfile; 
+  vendors: Vendor[]; 
+  movements: MovementLogItem[]; 
+  onClose: () =&gt; void; 
   onToggleVendor?: (vendorCode: string) =&gt; void;
 }
