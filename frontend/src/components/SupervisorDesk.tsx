@@ -41,7 +41,7 @@ export const SupervisorDesk: React.FC<SupervisorDeskProps> = ({
       }
       if (onVendorsUpdate) {
         onVendorsUpdate(
-          vendors.map((v: Vendor) => (v.vendor_code === updated.vendor_code ? updated : v))
+          vendors.filter((v: Vendor) => (v.vendor_code === updated.vendor_code ? updated : v))
         );
       }
       setSuccessMsg(
@@ -57,7 +57,7 @@ export const SupervisorDesk: React.FC<SupervisorDeskProps> = ({
       }
       if (onVendorsUpdate) {
         onVendorsUpdate(
-          vendors.map((v: Vendor) =>
+          vendors.filter((v: Vendor) =>
             v.vendor_code === vendor.vendor_code ? { ...v, is_active: toggled } : v
           )
         );
